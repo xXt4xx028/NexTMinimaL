@@ -397,7 +397,7 @@ end
 local lastDrivetrainSignature, lastAuxiliarySignature, lastDeviceModesSignature, lastDNA = nil, nil, nil, nil
 
 local function buildDrivetrainSignature(dt) return string.format("%s|%s|%s|%s|%s", tostring(dt.fDiff.state), tostring(dt.cDiff.state), tostring(dt.rDiff.state), tostring(dt.mode4wd), tostring(dt.lowRangeActive)) end
-local function buildAuxiliarySignature(aux) return string.format("%s|%s|%.2f", tostring(aux.nosActive), tostring(aux.jatoActive), aux.nosLevel or 0) end
+local function buildAuxiliarySignature(aux) return string.format("%s|%s|%.2f|%s|%s|%s|%s|%s", tostring(aux.nosActive), tostring(aux.jatoActive), aux.nosLevel or 0, tostring(aux.fog), tostring(aux.lightbar), tostring(aux.extra1), tostring(aux.extra2), tostring(aux.fogActive)) end
 local function buildDeviceModesSignature(modes)
   local t = {}
   for id, m in pairs(modes) do local val = type(m) == "table" and (tostring(m.mode) .. (m.isActive and "1" or "0")) or tostring(m); table.insert(t, id .. ":" .. val) end
@@ -567,7 +567,25 @@ local function collectDrivetrainData()
 end
 
 local function collectAuxiliaryData()
-  local info = { hasNos = false, nosActive = false, nosLevel = 0, hasJato = false, jatoActive = false }
+  local info = { 
+    hasNos = false, nosActive = false, nosLevel = 0, 
+    hasJato = false, jatoActive = false,
+    fog = (electrics.values.fog == 1 or electrics.values.fog_front == 1 or electrics.values.fog_rear == 1),
+    lightbar = (electrics.values.lightbar == 1),
+    extra1 = (electrics.values.extra1 == 1),
+    extra2 = (electrics.values.extra2 == 1),
+    fogActive = false
+  }
+  -- Universal Light Scanner: catch any fog/nosecone/extra/roof keys
+  for k, v in pairs(electrics.values) do
+    if type(k) == "string" and (v == 1 or v == true) then
+      local lk = k:lower()
+      if lk:find("fog") or lk:find("nosecone") or lk:find("extra") or lk:find("roof") then
+        info.fogActive = true
+        break
+      end
+    end
+  end
   if energyStorage and energyStorage.getStorage then
     for _, sname in ipairs({"n2o", "nos", "nitrous", "nitrousOxide", "n2oTank", "nosTank"}) do
       local tank = energyStorage.getStorage(sname)
@@ -648,6 +666,11 @@ local function pushUpdates(force)
   local wSig = string.format("%s|%s|%s|%s|%s", tostring(wd.tiresDeflated.fl), tostring(wd.tiresDeflated.fr), tostring(wd.tiresDeflated.rl), tostring(wd.tiresDeflated.rr), wd.padMaterial)
   if force or wSig ~= lastWheelSignature then lastWheelSignature = wSig; guihooks.trigger("NexTMinimaL_Wheels", wd) end
 end
+
+function M.toggleFog() electrics.toggle_fog() end
+function M.toggleLightbar() electrics.toggle_lightbar() end
+function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
+function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
 
 function M.setIgnition(level)
   level = math.floor(math.max(0, math.min(3, tonumber(level) or 0)))
