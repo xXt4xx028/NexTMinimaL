@@ -1,0 +1,17 @@
+{
+  "name": "NexTMinimaL Starter",
+  "author": "Bryan",
+  "version": "4.0",
+  "description": "Panel de arranque con botones dinámicos de drivetrain, ESC/ABS/TCS, NOS y modo de manejo.",
+  "directive": "nextMinimalStarter",
+  "domElement": "<next-minimal-starter></next-minimal-starter>",
+  "types": ["ui.apps.categories.vehicle_info"],
+  "category": "Dashboard",
+  "isAuxiliary": false,
+  "interactive": "yes",
+  "preserveAspectRatio": false,
+  "css": {
+    "width": "280px",
+    "height": "300px"
+  }
+}
