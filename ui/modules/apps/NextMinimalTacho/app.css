@@ -191,32 +191,28 @@
 
 /* ── DASH ROW ── */
 .nxt-dash-row {
-  display: grid;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
   gap: 1px;
   background: var(--nxt-sep);
   border-top: 1px solid var(--nxt-sep);
   border-bottom: 1px solid var(--nxt-sep);
   flex-shrink: 0;
 }
-.nxt-cols-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-.nxt-cols-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-.nxt-cols-4 {
-  grid-template-columns: repeat(4, 1fr);
-}
-.nxt-dash-row>div {
+.nxt-dash-row > div {
+  flex: 1 1 0;
   background: rgba(10, 11, 13, 0.9);
-  padding: 6px 8px;
+  padding: 6px 4px;
   text-align: center;
-  position: relative; /* Base for alerts */
-}
-.nxt-rpm-item {
+  position: relative;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  min-width: 0;
+}
+.nxt-rpm-item {
   padding-bottom: 10px !important; 
 }
 
@@ -297,6 +293,8 @@
   color: var(--nxt-mute);
   opacity: .4;
   font-size: 11px;
+  width: 32px; /* Fixed width for perfect centering */
+  text-align: center;
 }
 .nxt-mini-act {
   font-size: 22px;
