@@ -1,0 +1,6 @@
+*.bak
+.gemini/
+.claude/
+.agentchat_workspace/
+.swarm_memory*.md
+tmp_img_*.png

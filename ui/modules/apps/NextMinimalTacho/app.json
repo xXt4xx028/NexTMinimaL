@@ -1,0 +1,17 @@
+{
+  "name": "NexTMinimaL Tacho",
+  "author": "Bryan",
+  "version": "4.0",
+  "description": "Tacómetro adaptativo con soporte de asistencias, NOS, boost y modo de manejo.",
+  "directive": "nextMinimalTacho",
+  "domElement": "<next-minimal-tacho></next-minimal-tacho>",
+  "types": ["ui.apps.categories.vehicle_info"],
+  "category": "Dashboard",
+  "isAuxiliary": false,
+  "interactive": "no",
+  "preserveAspectRatio": false,
+  "css": {
+    "width": "400px",
+    "height": "250px"
+  }
+}
