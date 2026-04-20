@@ -397,7 +397,7 @@ end
 local lastDrivetrainSignature, lastAuxiliarySignature, lastDeviceModesSignature, lastDNA = nil, nil, nil, nil
 
 local function buildDrivetrainSignature(dt) return string.format("%s|%s|%s|%s|%s", tostring(dt.fDiff.state), tostring(dt.cDiff.state), tostring(dt.rDiff.state), tostring(dt.mode4wd), tostring(dt.lowRangeActive)) end
-local function buildAuxiliarySignature(aux) return string.format("%s|%s|%.2f|%s|%s|%s|%s|%s", tostring(aux.nosActive), tostring(aux.jatoActive), aux.nosLevel or 0, tostring(aux.fog), tostring(aux.lightbar), tostring(aux.extra1), tostring(aux.extra2), tostring(aux.fogActive)) end
+local function buildAuxiliarySignature(aux) return string.format("%s|%s|%.2f|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", tostring(aux.nosActive), tostring(aux.jatoActive), aux.nosLevel or 0, tostring(aux.fog), tostring(aux.lightbar), tostring(aux.extra1), tostring(aux.extra2), tostring(aux.fogActive), tostring(aux.fogOn), tostring(aux.noseconeOn), tostring(aux.spotlightOn), tostring(aux.extra1On), tostring(aux.extra2On)) end
 local function buildDeviceModesSignature(modes)
   local t = {}
   for id, m in pairs(modes) do local val = type(m) == "table" and (tostring(m.mode) .. (m.isActive and "1" or "0")) or tostring(m); table.insert(t, id .. ":" .. val) end
@@ -507,16 +507,18 @@ local function scanToggleableDevices()
     
     local label = normalizeDeviceLabel(dev.name, dev.uiName, dType)
     local isHidden = false
-    if label == "Front Output" or label == "Front Drive" or label == "Front Lock" then
+    local isFrontRelated = label == "Front Output" or label == "Front Drive" or
+                           label == "Front Lock" or label == "FL Axle" or label == "FR Axle"
+    if isFrontRelated then
       local diffs = powertrain.getDevicesByType("differential")
-      local hasFront = false
+      local hasFrontDiff = false
       if diffs then
         for _, d in ipairs(diffs) do
           local dn = string.lower(d.name or "")
-          if dn:find("front") or dn:find("^f[_%-]") or dn:find("[_%-]f$") or dn:find("[_%-]f[_%-]") then hasFront = true; break end
+          if dn:find("front") or dn:find("^f[_%-]") or dn:find("[_%-]f$") or dn:find("[_%-]f[_%-]") then hasFrontDiff = true; break end
         end
       end
-      if not hasFront then isHidden = true end
+      if not hasFrontDiff then isHidden = true end
     end
 
     seen[dev.name] = true; 
@@ -606,20 +608,29 @@ local function collectDrivetrainData()
 end
 
 local function collectAuxiliaryData()
-  local info = { 
-    hasNos = false, nosActive = false, nosLevel = 0, 
+  local vals = electrics.values
+  local info = {
+    hasNos = false, nosActive = false, nosLevel = 0,
     hasJato = false, jatoActive = false,
-    fog = (electrics.values.fog == 1 or electrics.values.fog_front == 1 or electrics.values.fog_rear == 1),
-    lightbar = (electrics.values.lightbar == 1),
-    extra1 = (electrics.values.extra1 == 1),
-    extra2 = (electrics.values.extra2 == 1),
-    fogActive = false
+    fog = (vals.fog == 1 or vals.fog_front == 1 or vals.fog_rear == 1),
+    lightbar = (vals.lightbar == 1),
+    extra1 = (vals.extra1 == 1),
+    extra2 = (vals.extra2 == 1),
+    fogActive = false,
+    fogOn       = (vals.fog == 1 or vals.fog_front == 1 or vals.fog_rear == 1 or vals.foglight == 1),
+    noseconeOn  = (vals.noseconelight == 1),
+    spotlightOn = (vals.spotlight_L == 1 or vals.spotlight_R == 1),
+    extra1On    = (vals.extra1 == 1),
+    extra2On    = (vals.extra2 == 1),
+    lightbarOn  = (vals.lightbar == 1),
   }
-  -- Universal Light Scanner: catch any fog/nosecone/extra/roof keys
-  for k, v in pairs(electrics.values) do
+  -- Universal Light Scanner: fog, nosecone, spotlights, beacons, extras
+  for k, v in pairs(vals) do
     if type(k) == "string" and (v == 1 or v == true) then
       local lk = k:lower()
-      if lk:find("fog") or lk:find("nosecone") or lk:find("extra") or lk:find("roof") then
+      if lk:find("fog") or lk:find("nosecone") or lk:find("extra")
+         or lk:find("roof") or lk:find("spotlight") or lk:find("beacon")
+         or lk:find("bumperlight") then
         info.fogActive = true
         break
       end
@@ -706,10 +717,49 @@ local function pushUpdates(force)
   if force or wSig ~= lastWheelSignature then lastWheelSignature = wSig; guihooks.trigger("NexTMinimaL_Wheels", wd) end
 end
 
-function M.toggleFog() electrics.toggle_fog_lights() end
+function M.toggleFog()
+  local vals = electrics and electrics.values or {}
+  if vals.fog ~= nil or vals.fog_front ~= nil or vals.fog_rear ~= nil or vals.foglight ~= nil then
+    electrics.toggle_fog_lights()
+  elseif vals.extra1 ~= nil then
+    electrics.values.extra1 = 1 - (electrics.values.extra1 or 0)
+  end
+end
+
+function M.toggleNosecone()
+  local vals = electrics and electrics.values or {}
+  if vals.noseconelight ~= nil then
+    electrics.values.noseconelight = 1 - (electrics.values.noseconelight or 0)
+  end
+end
+
+function M.toggleSpotlight()
+  local vals = electrics and electrics.values or {}
+  local newState
+  if vals.spotlight_L ~= nil then
+    newState = 1 - (electrics.values.spotlight_L or 0)
+    electrics.values.spotlight_L = newState
+  end
+  if vals.spotlight_R ~= nil then
+    electrics.values.spotlight_R = newState ~= nil and newState or (1 - (electrics.values.spotlight_R or 0))
+  end
+end
+
 function M.toggleLightbar() electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1) end
 function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
 function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
+
+local function detectAuxLightCaps()
+  local vals = electrics and electrics.values or {}
+  return {
+    hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or vals.fog_rear ~= nil or vals.foglight ~= nil),
+    hasNosecone  = (vals.noseconelight ~= nil),
+    hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil),
+    hasExtra1    = (vals.extra1 ~= nil),
+    hasExtra2    = (vals.extra2 ~= nil),
+    hasLightbar  = (vals.lightbar ~= nil),
+  }
+end
 
 function M.setIgnition(level)
   level = math.floor(math.max(0, math.min(3, tonumber(level) or 0)))
@@ -767,6 +817,7 @@ local function buildDNA()
   if dna.transmission.isAutomatic and selectorHasReverse and dna.transmission.minGearIndex >= 0 then dna.transmission.minGearIndex = -1 end
   dna.transmission.gearCount = (dna.transmission.isAutomatic and #dna.transmission.selectorModes > 0) and #dna.transmission.selectorModes or (dna.transmission.maxGearIndex or 0) + math.abs(dna.transmission.minGearIndex or 0) + 1
   dna.toggleableDevices = scanToggleableDevices()
+  dna.auxLightCaps = detectAuxLightCaps()
   dna.ready = true
   return dna
 end

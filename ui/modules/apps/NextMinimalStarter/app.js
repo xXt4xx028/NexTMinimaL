@@ -89,6 +89,21 @@ var NXS_STARTER_TEMPLATE = `
     </div>
   </div>
 
+  <!-- AUX LIGHTS CHIPS -->
+  <div class="nxs-sect" ng-if="auxLightButtons.length > 0">
+    <div class="nxs-sect-ttl">AUX LIGHTS</div>
+    <div class="nxs-chips">
+      <span ng-repeat="btn in auxLightButtons track by btn.id"
+            class="nxs-chip nxs-chip-aux"
+            ng-class="luaMeta.auxiliary[btn.stateKey] ? 'nxs-chip-active' : 'nxs-chip-off'"
+            ng-click="toggleAuxLight(btn)">
+        <span class="nxs-chip-d nxs-chip-d-aux"
+              ng-class="luaMeta.auxiliary[btn.stateKey] ? 'nxs-chip-d-on' : ''"></span>
+        <span class="nxs-chip-n">{{btn.label}}</span>
+      </span>
+    </div>
+  </div>
+
   <!-- ASSIST CHIPS -->
   <div class="nxs-sect" ng-if="luaMeta.assists.esc.installed !== false || luaMeta.assists.abs.installed || luaMeta.assists.tcs.installed">
     <div class="nxs-sect-ttl">ASSIST</div>
@@ -179,7 +194,8 @@ var nxtStarterDirective = function ($timeout) {
             esc: { installed: null, hasController: false, enabled: null, modeName: '' },
             abs: { installed: null },
             tcs: { installed: null }
-          }
+          },
+          auxLightCaps: { hasFog: false, hasNosecone: false, hasSpotlight: false, hasExtra1: false, hasExtra2: false, hasLightbar: false }
         };
       }
 
@@ -194,11 +210,12 @@ var nxtStarterDirective = function ($timeout) {
 
       scope.luaMeta           = createLuaMeta();
       scope.starter           = createStarterState();
-      scope.data              = { 
+      scope.data              = {
         escActive: false, escModeOff: false, absActive: false, tcsActive: false,
         isNarrow: false
       };
       scope.drivetrainButtons = [];
+      scope.auxLightButtons   = [];
 
       scope.$on('app:resized', function (event, data) {
         scope.$evalAsync(function () {
@@ -230,7 +247,8 @@ var nxtStarterDirective = function ($timeout) {
       }
 
       function rebuildButtons() {
-        var devices = (scope.luaMeta.toggleableDevices || []).filter(function(dev) {
+        var raw = scope.luaMeta.toggleableDevices || [];
+        var devices = (Array.isArray(raw) ? raw : Object.values(raw)).filter(function(dev) {
           return !dev.isHidden;
         });
         scope.drivetrainButtons = devices.map(function(dev) {
@@ -242,6 +260,18 @@ var nxtStarterDirective = function ($timeout) {
             active: !!dev.isActive
           };
         });
+      }
+
+      function rebuildAuxButtons() {
+        var caps = scope.luaMeta.auxLightCaps || {};
+        var buttons = [];
+        if (caps.hasFog)       buttons.push({ id: 'fog',      label: 'FOG',      luaFn: 'toggleFog()',       stateKey: 'fogOn'       });
+        if (caps.hasNosecone)  buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()',  stateKey: 'noseconeOn'  });
+        if (caps.hasSpotlight) buttons.push({ id: 'spot',     label: 'SPOT',     luaFn: 'toggleSpotlight()', stateKey: 'spotlightOn' });
+        if (caps.hasExtra1)    buttons.push({ id: 'extra1',   label: 'AUX 1',    luaFn: 'toggleExtra1()',    stateKey: 'extra1On'    });
+        if (caps.hasExtra2)    buttons.push({ id: 'extra2',   label: 'AUX 2',    luaFn: 'toggleExtra2()',    stateKey: 'extra2On'    });
+        if (caps.hasLightbar)  buttons.push({ id: 'lightbar', label: 'LIGHTBAR', luaFn: 'toggleLightbar()',  stateKey: 'lightbarOn'  });
+        scope.auxLightButtons = buttons;
       }
 
       function updateButtonStates(modes) {
@@ -309,10 +339,11 @@ var nxtStarterDirective = function ($timeout) {
         }
       };
 
-      scope.nextDriveMode = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.nextDriveMode()'); };
-      scope.toggleDevice  = function(id) { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleDevice("' + id + '")'); };
-      scope.toggleNos     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleNos()'); };
-      scope.toggleJato    = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleJato()'); };
+      scope.nextDriveMode  = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.nextDriveMode()'); };
+      scope.toggleDevice   = function(id) { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleDevice("' + id + '")'); };
+      scope.toggleNos      = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleNos()'); };
+      scope.toggleJato     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleJato()'); };
+      scope.toggleAuxLight = function(btn) { bngApi.activeObjectLua('extensions.nextMinimalDNA.' + btn.luaFn); };
 
       var dnaCatchUpTimer = null;
       function clearCatchUp() { if (dnaCatchUpTimer !== null) { $timeout.cancel(dnaCatchUpTimer); dnaCatchUpTimer = null; } }
@@ -332,6 +363,7 @@ var nxtStarterDirective = function ($timeout) {
         scope.starter = createStarterState();
         scope.data    = { escActive: false, escModeOff: false, absActive: false, tcsActive: false };
         scope.drivetrainButtons = [];
+        scope.auxLightButtons   = [];
       }
 
       scope.$on('NexTMinimaL_DNA', function(event, dna) {
@@ -343,7 +375,9 @@ var nxtStarterDirective = function ($timeout) {
           scope.luaMeta.drivetrain        = dna.drivetrain   || createLuaMeta().drivetrain;
           scope.luaMeta.auxiliary         = dna.auxiliary    || createLuaMeta().auxiliary;
           scope.luaMeta.toggleableDevices = dna.toggleableDevices || [];
+          scope.luaMeta.auxLightCaps      = dna.auxLightCaps || createLuaMeta().auxLightCaps;
           rebuildButtons();
+          rebuildAuxButtons();
 
           var a = (dna.assists && dna.assists.esc) || {};
           scope.luaMeta.assists.esc.installed     = typeof a.installed === 'boolean' ? a.installed : null;

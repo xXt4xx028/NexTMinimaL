@@ -374,6 +374,17 @@
   box-shadow: 0 0 6px var(--nxt-glow);
 }
 
+.nxs-chip-d-aux {
+  background: rgba(255, 210, 63, 0.3);
+}
+.nxs-chip-d-aux.nxs-chip-d-on {
+  background: #ffd23f;
+  box-shadow: 0 0 6px rgba(255, 210, 63, 0.55);
+}
+.nxs-chip-aux.nxs-chip-active {
+  border-color: rgba(255, 210, 63, 0.45);
+}
+
 /* Active chip border accent */
 .nxs-chip-nos.nxs-chip-active {
   border-color: rgba(168, 85, 247, 0.45);

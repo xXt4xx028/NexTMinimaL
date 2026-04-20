@@ -237,15 +237,12 @@
   width: 6px;
   height: 6px;
 }
-  width: 6px;
-  height: 6px;
-}
 
 .nxt-dash-k {
   font-family: var(--nxt-font-mono);
-  font-size: 7px;
+  font-size: 6px;
   font-weight: 400;
-  letter-spacing: 0.35em;
+  letter-spacing: 0.2em;
   color: var(--nxt-mute);
 }
 .nxt-dash-v {
