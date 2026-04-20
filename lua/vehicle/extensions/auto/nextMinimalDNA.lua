@@ -757,16 +757,23 @@ function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1
 function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
 
 local function detectAuxLightCaps()
+  local vName = (v and v.data and v.data.information and v.data.information.name) or "Unknown"
+  local lightParts = {}
   local caps = {
-    hasFog       = false,
-    hasNosecone  = false,
-    hasSpotlight = false,
-    hasExtra1    = false,
-    hasExtra2    = false,
-    hasLightbar  = false,
-    isLED        = false,
-    isRack       = false
+    hasFog = false, hasNosecone = false, hasSpotlight = false,
+    hasExtra1 = false, hasExtra2 = false, hasLightbar = false,
+    isLED = false, isRack = false
   }
+  if v and v.config and type(v.config.parts) == "table" then
+    for slot, part in pairs(v.config.parts) do
+      local p = string.lower(tostring(part))
+      if p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") then
+        table.insert(lightParts, p)
+      end
+    end
+  end
+  log("I", "nextMinimalDNA", ">> Vehicle: " .. vName)
+  log("I", "nextMinimalDNA", ">> Light parts: " .. table.concat(lightParts, ", "))
 
   -- ESCANEO DE SLOTS (HUECOS): El mÃ©todo mÃ¡s preciso para detectar hardware real
   if v and v.config and type(v.config.parts) == "table" then
