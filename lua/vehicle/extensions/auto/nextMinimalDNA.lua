@@ -728,20 +728,14 @@ function M.toggleFog()
 end
 
 function M.toggleAuxFusion()
-  local newState = 0
-  -- Determinamos el nuevo estado basado en si alguna estÃ¡ encendida (incluyendo Extras)
-  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or 
-     (electrics.values.lightbar == 1) or (electrics.values.extra1 == 1) or 
-     (electrics.values.extra2 == 1) then
+  local newState = 1
+  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
     newState = 0
-  else
-    newState = 1
   end
 
-  -- Aplicamos el estado a todos los canales relevantes
-  if electrics.values.fog ~= nil then electrics.values.fog = newState end
-  if electrics.values.fog_front ~= nil then electrics.values.fog_front = newState end
-  if electrics.values.lightbar ~= nil then electrics.values.lightbar = newState end
+  if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
+  if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
+  -- Forzar extras si existen
   if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
   if electrics.values.extra2 ~= nil then electrics.values.extra2 = newState end
 end
@@ -759,9 +753,7 @@ function M.toggleSpotlight()
 end
 
 function M.toggleLightbar()
-  if electrics.values.lightbar ~= nil then
-    electrics.values.lightbar = (electrics.values.lightbar == 1) and 0 or 1
-  end
+  if electrics.set_lightbar_signal then electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1) end
 end
 function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
 function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
@@ -771,12 +763,12 @@ local function detectAuxLightCaps()
   local static = (v and v.data and v.data.electrics) or {}
   
   local caps = {
-    hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or vals.foglight ~= nil or static.fog ~= nil or static.fog_front ~= nil),
-    hasNosecone  = (vals.noseconelight ~= nil or static.noseconelight ~= nil),
-    hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil or static.spotlight_L ~= nil or static.spotlight_R ~= nil),
-    hasExtra1    = (vals.extra1 ~= nil or static.extra1 ~= nil),
-    hasExtra2    = (vals.extra2 ~= nil or static.extra2 ~= nil),
-    hasLightbar  = (vals.lightbar ~= nil or static.lightbar ~= nil),
+    hasFog       = (static.fog ~= nil or static.fog_front ~= nil),
+    hasNosecone  = (static.noseconelight ~= nil),
+    hasSpotlight = (static.spotlight_L ~= nil or static.spotlight_R ~= nil),
+    hasExtra1    = (static.extra1 ~= nil),
+    hasExtra2    = (static.extra2 ~= nil),
+    hasLightbar  = (static.lightbar ~= nil),
     isLED        = false,
     isRack       = false
   }
@@ -791,6 +783,10 @@ local function detectAuxLightCaps()
       end
     end
   end
+  
+  -- Si el escaneo de piezas detectÃ³ rack/led pero el JBEAM no tiene el canal, 
+  -- lo habilitamos para que el botÃ³n aparezca (algunos mods usan canales genÃ©ricos)
+  if caps.isRack or caps.isLED then caps.hasLightbar = true end
 
   return caps
 end
