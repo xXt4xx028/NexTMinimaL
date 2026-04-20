@@ -768,23 +768,27 @@ function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2
 
 local function detectAuxLightCaps()
   local vals = electrics and electrics.values or {}
+  local static = (v and v.data and v.data.electrics) or {}
+  
   local caps = {
-    hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or vals.fog_rear ~= nil or vals.foglight ~= nil),
-    hasNosecone  = (vals.noseconelight ~= nil),
-    hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil),
-    hasExtra1    = (vals.extra1 ~= nil),
-    hasExtra2    = (vals.extra2 ~= nil),
-    hasLightbar  = (vals.lightbar ~= nil),
+    hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or vals.foglight ~= nil or static.fog ~= nil or static.fog_front ~= nil),
+    hasNosecone  = (vals.noseconelight ~= nil or static.noseconelight ~= nil),
+    hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil or static.spotlight_L ~= nil or static.spotlight_R ~= nil),
+    hasExtra1    = (vals.extra1 ~= nil or static.extra1 ~= nil),
+    hasExtra2    = (vals.extra2 ~= nil or static.extra2 ~= nil),
+    hasLightbar  = (vals.lightbar ~= nil or static.lightbar ~= nil),
     isLED        = false,
     isRack       = false
   }
 
-  -- Escaneo avanzado de piezas instaladas
+  -- Escaneo avanzado de piezas instaladas para nomenclatura
   if v and v.config and type(v.config.parts) == "table" then
     for _, partValue in pairs(v.config.parts) do
       local p = string.lower(tostring(partValue))
-      if p:find("led") or p:find("pixel") then caps.isLED = true end
-      if p:find("rack") or p:find("roof") or p:find("bar") or p:find("rally") then caps.isRack = true end
+      if p:find("led") or p:find("pixel") or p:find("hid") then caps.isLED = true end
+      if p:find("rack") or p:find("roof") or p:find("bar") or p:find("rally") or p:find("top") then 
+        if p:find("light") or p:find("spot") then caps.isRack = true end
+      end
     end
   end
 
