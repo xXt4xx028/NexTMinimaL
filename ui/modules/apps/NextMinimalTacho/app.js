@@ -13,17 +13,11 @@ var NXT_TACHO_TEMPLATE = `
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 12l8-7v4h7v6h-7v4z"/></svg>
         </div>
         <div class="nxt-light-icons">
-          <div class="nxt-lt nxt-lt-warn nxt-clickable" ng-class="{'nxt-lt-on': data.lightbarActive}" ng-click="toggleLightbar()">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2" stroke-linecap="round"/></svg>
-          </div>
           <div class="nxt-lt nxt-clickable" ng-class="{'nxt-lt-on': data.lights === 'low'}" ng-click="toggleLowBeam()">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 16c0-5 3-9 8-9 3 0 5 1.5 6 3"/><path d="M4 16h10"/><path d="M16 9l3-1"/><path d="M17 12l3 0"/><path d="M16 15l3 1" opacity="0.5"/></svg>
           </div>
           <div class="nxt-lt nxt-lt-hi nxt-clickable" ng-class="{'nxt-lt-on': data.lights === 'high'}" ng-click="toggleHighbeam()">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 16c0-5 3-9 8-9 3 0 5 1.5 6 3"/><path d="M4 16h10"/><path d="M16 8l4-2"/><path d="M17 11l4 0"/><path d="M16 14l4 2"/></svg>
-          </div>
-          <div class="nxt-lt nxt-lt-fog nxt-clickable" ng-class="{'nxt-lt-on': data.lights === 'fog'}" ng-click="toggleFog()">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 14c0-4 3-7 7-7 2.5 0 4.5 1 5.5 2.5"/><path d="M4 14h8"/><path d="M15 11h5" stroke-dasharray="2 2"/><path d="M15 14h5" stroke-dasharray="2 2"/><path d="M15 17h5" stroke-dasharray="2 2"/></svg>
           </div>
           <div class="nxt-lt nxt-lt-prk" ng-class="{'nxt-lt-on': data.parking}">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M10 8h3a2.5 2.5 0 0 1 0 5h-3V8z"/><path d="M10 13v3"/></svg>
@@ -364,18 +358,26 @@ var nxtTachoDirective = function ($timeout) {
         var _savedCoolant = window.localStorage && window.localStorage.getItem(COOLANT_UNIT_KEY);
         if (_savedCoolant === 'C' || _savedCoolant === 'F') scope.data.coolantUnit = _savedCoolant;
       } catch (e) {}
-      scope.toggleParkingLights = function() {
-        var next = (scope.data.lights === 'low' || scope.data.lights === 'high') ? 0 : 1;
-        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
-      };
-
       scope.toggleLowBeam = function() {
         var next = (scope.data.lights === 'low') ? 0 : 1;
         bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
 
       scope.toggleHighbeam = function() {
-        bngApi.activeObjectLua('electrics.toggle_highbeams()');
+        if (scope.data.lights === 'high') {
+          // Ciclo realista apagado: 2 -> 1 -> 0
+          bngApi.activeObjectLua('electrics.setLightsState(1)');
+          $timeout(function() { bngApi.activeObjectLua('electrics.setLightsState(0)'); }, 100);
+        } else {
+          // Ciclo realista encendido: 0 -> 1 -> 2
+          if (scope.data.lights === 'off' || scope.data.lights === 'park') {
+            bngApi.activeObjectLua('electrics.setLightsState(1)');
+            $timeout(function() { bngApi.activeObjectLua('electrics.setLightsState(2)'); }, 100);
+          } else {
+            // Si ya estÃ¡ en bajas (1), saltar directo a altas (2)
+            bngApi.activeObjectLua('electrics.setLightsState(2)');
+          }
+        }
       };
       scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
       scope.toggleParkingBrake = function() { return; };
