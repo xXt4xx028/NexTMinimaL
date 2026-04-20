@@ -9,7 +9,7 @@ var NXT_TACHO_TEMPLATE = `
 
       <!-- LIGHTS CLUSTER -->
       <div class="nxt-lights">
-        <div class="nxt-tsig nxt-clickable" ng-class="{'nxt-tsig-on': data.signalL, 'nxt-tsig-hz': data.hazards}" ng-click="toggleHazards()">
+        <div class="nxt-tsig" ng-class="{'nxt-tsig-on': data.signalL, 'nxt-tsig-hz': data.hazards}">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 12l8-7v4h7v6h-7v4z"/></svg>
         </div>
         <div class="nxt-light-icons">
@@ -25,14 +25,14 @@ var NXT_TACHO_TEMPLATE = `
           <div class="nxt-lt nxt-lt-fog nxt-clickable" ng-class="{'nxt-lt-on': data.lights === 'fog'}" ng-click="toggleFog()">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 14c0-4 3-7 7-7 2.5 0 4.5 1 5.5 2.5"/><path d="M4 14h8"/><path d="M15 11h5" stroke-dasharray="2 2"/><path d="M15 14h5" stroke-dasharray="2 2"/><path d="M15 17h5" stroke-dasharray="2 2"/></svg>
           </div>
-          <div class="nxt-lt nxt-lt-prk nxt-clickable" ng-class="{'nxt-lt-on': data.parking}" ng-click="toggleParkingBrake()">
+          <div class="nxt-lt nxt-lt-prk" ng-class="{'nxt-lt-on': data.parking}">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M10 8h3a2.5 2.5 0 0 1 0 5h-3V8z"/><path d="M10 13v3"/></svg>
           </div>
-          <div class="nxt-lt nxt-lt-warn nxt-clickable" ng-class="{'nxt-lt-on': data.lightbarActive}" ng-click="toggleLightbar()">
+          <div class="nxt-lt nxt-lt-warn" ng-class="{'nxt-lt-on': data.lightbarActive}">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="10" width="18" height="4" rx="1"/><path d="M7 10V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><path d="M12 10v4"/></svg>
           </div>
         </div>
-        <div class="nxt-tsig nxt-tsig-r nxt-clickable" ng-class="{'nxt-tsig-on': data.signalR, 'nxt-tsig-hz': data.hazards}" ng-click="toggleHazards()">
+        <div class="nxt-tsig nxt-tsig-r" ng-class="{'nxt-tsig-on': data.signalR, 'nxt-tsig-hz': data.hazards}">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="transform:scaleX(-1)"><path d="M4 12l8-7v4h7v6h-7v4z"/></svg>
         </div>
       </div>
@@ -375,17 +375,18 @@ var nxtTachoDirective = function ($timeout) {
       };
       
       scope.toggleLowBeam = function() {
-        var next = (scope.data.lights === 'low') ? 0 : 1;
+        var next = (scope.data.lights === 'low') ? 0 : 2;
         bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
 
       scope.toggleHighbeam = function() { 
-        var next = (scope.data.lights === 'high') ? 1 : 2;
+        var next = (scope.data.lights === 'high') ? 0 : 2;
         bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
       scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
-      scope.toggleParkingBrake = function() { bngApi.activeObjectLua('input.event("parkingbrake", electrics.values.parkingbrake > 0.5 and 0 or 1)'); };
-      scope.toggleLightbar = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleLightbar()'); };
+      scope.toggleParkingBrake = function() { return; };
+      scope.toggleLightbar = function() { return; };
+      scope.toggleHazards = function() { return; };
 
       scope.$on('app:resized', function (event, data) {
         scope.$evalAsync(function () {

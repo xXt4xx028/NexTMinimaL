@@ -219,20 +219,26 @@
 /* Redline Alert top-right */
 .nxt-redline-alert {
   position: absolute;
-  top: 3px;
-  right: 5px;
+  top: 0px;
+  right: 2px;
   display: flex;
   align-items: center;
   gap: 2px;
   color: #ff3030;
   font-family: var(--nxt-font-mono);
-  font-size: 6px;
+  font-size: 5px;
   font-weight: 700;
   letter-spacing: 0.02em;
   animation: nxtSoftBlink 0.4s infinite alternate; /* Parpadeo leve y constante */
+  white-space: nowrap;
 }
 .nxt-redline-alert svg {
   filter: drop-shadow(0 0 1px rgba(255,48,48,0.3));
+  width: 6px;
+  height: 6px;
+}
+  width: 6px;
+  height: 6px;
 }
 
 .nxt-dash-k {
@@ -274,8 +280,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   height: 30px;
+  overflow: visible;
+  width: 100%;
 }
 .nxt-shifting .nxt-mini-act {
   animation: nxtShift 0.2s ease-out;
@@ -293,7 +301,7 @@
   color: var(--nxt-mute);
   opacity: .4;
   font-size: 11px;
-  width: 32px; /* Fixed width for perfect centering */
+  width: 20px; /* Fixed width for perfect centering without clipping */
   text-align: center;
 }
 .nxt-mini-act {
