@@ -758,27 +758,33 @@ local function detectAuxLightCaps()
     isLED = false, isRack = false
   }
 
-  -- HARDWARE AUDIT: Standard V-Lua activePartsData scan
   local activeParts = v and v.data and v.data.activePartsData
   if type(activeParts) == "table" then
-    for slot, partName in pairs(activeParts) do
-      local p = partName:lower()
-      -- Strict Light Detection: Must have light-related keywords
-      local isLightKeyword = p:find("light") or p:find("fog") or p:find("spot") or p:find("led") or p:find("pixel") or p:find("beacon")
-      -- Structural Filter: Exclude common non-light parts that often have 'bar' or 'roof' in name
-      local isStructural = p:find("swaybar") or p:find("bumperbar") or p:find("bullbar") or p:find("sidestep") or p:find("support")
-      
-      if isLightKeyword and not isStructural then
-        table.insert(matchedParts, partName)
-        if p:find("fog") then caps.hasFog = true end
-        if p:find("rack") or p:find("roof") or p:find("top") or p:find("rally") or p:find("bar") then
-          caps.isRack, caps.hasLightbar = true, true
+    for slot, partData in pairs(activeParts) do
+      local pName = ""
+      if type(partData) == "table" then
+        pName = tostring(partData.partName or partData.name or ""):lower()
+      elseif type(partData) == "string" then
+        pName = partData:lower()
+      end
+
+      if pName ~= "" and pName ~= "none" then
+        local isStructural = pName:find("swaybar") or pName:find("bumperbar") or pName:find("bullbar") or pName:find("sidestep") or pName:find("support")
+        if not isStructural then
+          local isLight = pName:find("light") or pName:find("fog") or pName:find("spot") or pName:find("led") or pName:find("pixel") or pName:find("beacon") or pName:find("extra")
+          if isLight then
+            table.insert(matchedParts, pName)
+            if pName:find("fog") then caps.hasFog = true end
+            if pName:find("rack") or pName:find("roof") or pName:find("top") or pName:find("rally") or pName:find("bar") then
+              caps.isRack, caps.hasLightbar = true, true
+            end
+            if pName:find("led") or pName:find("pixel") then caps.isLED, caps.hasLightbar = true, true end
+            if pName:find("nosecone") then caps.hasNosecone = true end
+            if pName:find("spot") then caps.hasSpotlight = true end
+            if pName:find("extra1") then caps.hasExtra1 = true end
+            if pName:find("extra2") then caps.hasExtra2 = true end
+          end
         end
-        if p:find("led") or p:find("pixel") then caps.isLED, caps.hasLightbar = true, true end
-        if p:find("nosecone") then caps.hasNosecone = true end
-        if p:find("spot") then caps.hasSpotlight = true end
-        if p:find("extra1") then caps.hasExtra1 = true end
-        if p:find("extra2") then caps.hasExtra2 = true end
       end
     end
   end
