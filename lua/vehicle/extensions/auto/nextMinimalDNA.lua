@@ -822,6 +822,7 @@ local function buildDNA()
   return dna
 end
 
+local initFrames = 0
 local function getVehicleDNA()
   local dna = buildDNA()
   lastDNA = dna
@@ -830,16 +831,19 @@ local function getVehicleDNA()
   return dna
 end
 
-local function postponedDNA()
-  if obj and obj.postpone(getVehicleDNA) then return end
-  getVehicleDNA()
+M.onExtensionLoaded = function() initFrames = 10 end
+M.onReset = function() initFrames = 5 end
+M.onVehicleResetted = function() initFrames = 5 end
+M.onPowertrainReset = function() initFrames = 5 end
+
+M.updateGFX = function(dt)
+  if initFrames > 0 then
+    initFrames = initFrames - 1
+    if initFrames == 0 then getVehicleDNA() end
+  end
+  pushUpdates(false)
 end
 
-M.onExtensionLoaded = function() postponedDNA() end
-M.onReset = function() postponedDNA() end
-M.onVehicleResetted = function() postponedDNA() end
-M.onPowertrainReset = function() postponedDNA() end
-M.updateGFX = function(dt) pushUpdates(false) end
 M.getVehicleDNA = getVehicleDNA
 
 return M
