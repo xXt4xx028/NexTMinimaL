@@ -261,6 +261,14 @@
   flex-wrap: wrap;
   gap: 5px;
 }
+.nxs-narrow-layout {
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+.nxs-narrow-layout .nxs-chip {
+  width: 100% !important;
+  justify-content: space-between;
+}
 
 .nxs-chip {
   font-size: 9px;
