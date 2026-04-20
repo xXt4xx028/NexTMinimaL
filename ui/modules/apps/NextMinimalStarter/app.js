@@ -230,7 +230,10 @@ var nxtStarterDirective = function ($timeout) {
       }
 
       function rebuildButtons() {
-        scope.drivetrainButtons = (scope.luaMeta.toggleableDevices || []).map(function(dev) {
+        var devices = (scope.luaMeta.toggleableDevices || []).filter(function(dev) {
+          return !dev.isHidden;
+        });
+        scope.drivetrainButtons = devices.map(function(dev) {
           return {
             id:     dev.id,
             label:  dev.label,
