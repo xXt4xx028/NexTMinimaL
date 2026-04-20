@@ -720,20 +720,22 @@ end
 
 function M.toggleAuxFusion()
   local newState = 1
+  -- Determinamos el nuevo estado basado en los canales principales
   if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
     newState = 0
   end
 
-  -- 1. Funciones nativas (efectos de sonido)
+  -- ACCIÃ“N MAESTRA: Recorremos todos los valores de electrics y encendemos lo que huela a auxiliar
+  for k, _ in pairs(electrics.values) do
+    local lk = string.lower(k)
+    if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spotlight") then
+      electrics.values[k] = newState
+    end
+  end
+
+  -- CortesÃ­a para el motor de sonido y lÃ³gica interna
   if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
   if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
-
-  -- 2. FUERZA BRUTA: Escritura directa de canales (para el rack)
-  electrics.values.fog = newState
-  electrics.values.fog_front = newState
-  electrics.values.lightbar = newState
-  if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
-  if electrics.values.extra2 ~= nil then electrics.values.extra2 = newState end
 end
 
 function M.toggleNosecone()
@@ -755,37 +757,47 @@ function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1
 function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
 
 local function detectAuxLightCaps()
-  local vals = electrics and electrics.values or {}
-  local static = (v and v.data and v.data.electrics) or {}
-  
   local caps = {
-    hasFog       = (static.fog ~= nil or static.fog_front ~= nil),
-    hasNosecone  = (static.noseconelight ~= nil),
-    hasSpotlight = (static.spotlight_L ~= nil or static.spotlight_R ~= nil),
-    hasExtra1    = (static.extra1 ~= nil),
-    hasExtra2    = (static.extra2 ~= nil),
-    hasLightbar  = (static.lightbar ~= nil),
+    hasFog       = false,
+    hasNosecone  = false,
+    hasSpotlight = false,
+    hasExtra1    = false,
+    hasExtra2    = false,
+    hasLightbar  = false,
     isLED        = false,
     isRack       = false
   }
 
-  -- Escaneo avanzado de piezas INSTALADAS
+  -- ESCANEO DE SLOTS (HUECOS): El mÃ©todo mÃ¡s preciso para detectar hardware real
   if v and v.config and type(v.config.parts) == "table" then
-    for _, partValue in pairs(v.config.parts) do
-      local p = string.lower(tostring(partValue))
+    for slot, part in pairs(v.config.parts) do
+      local s = string.lower(tostring(slot))
+      local p = string.lower(tostring(part))
+      
       if p ~= "" and p ~= "none" then
-        -- DetecciÃ³n estricta de LED
-        if (p:find("led") or p:find("pixel")) and (p:find("light") or p:find("bar")) then caps.isLED = true end
-        -- DetecciÃ³n estricta de RACK/BARRA con LUCES
-        if (p:find("rack") or p:find("roof") or p:find("rally") or p:find("top") or p:find("bar")) then
-          if p:find("light") or p:find("spot") then caps.isRack = true end
+        -- ¿Es un slot de niebla?
+        if s:find("fog") then caps.hasFog = true end
+        -- ¿Es un slot de rack o techo con luces?
+        if s:find("rack") or s:find("roof") or s:find("top") or s:find("bar") or s:find("rally") then
+          if p:find("light") or p:find("spot") or p:find("led") or p:find("pixel") then
+            caps.isRack = true
+            caps.hasLightbar = true
+          end
+          if p:find("led") then caps.isLED = true end
         end
+        -- Otros
+        if s:find("nosecone") then caps.hasNosecone = true end
+        if s:find("spotlight") then caps.hasSpotlight = true end
+        if s:find("extra1") then caps.hasExtra1 = true end
+        if s:find("extra2") then caps.hasExtra2 = true end
       end
     end
   end
   
-  -- Forzamos canal si detectamos hardware fÃ­sico
-  if caps.isRack or caps.isLED then caps.hasLightbar = true end
+  -- Fallback: canales activos
+  local vals = electrics and electrics.values or {}
+  if not caps.hasFog and (vals.fog ~= nil or vals.fog_front ~= nil) then caps.hasFog = true end
+  if not caps.hasLightbar and vals.lightbar ~= nil then caps.hasLightbar = true end
 
   log("I", "nextMinimalDNA", string.format("AuxCaps -> Fog:%s, LBar:%s, Rack:%s, LED:%s", 
     tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
