@@ -717,28 +717,24 @@ end
 
 function M.toggleAuxFusion()
   local newState = 1
-  -- Determine new state based on primary channels
   if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
     newState = 0
   end
 
-  -- BRUTE FORCE: Loop through all electrics and force anything that looks like aux lights
-  for k, _ in pairs(electrics.values) do
-    local lk = string.lower(k)
-    if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spot") then
+  -- EXHAUSTIVE FORCE TOGGLE: Explicitly set all known auxiliary light channels
+  local channels = { "fog", "fog_front", "fog_rear", "lightbar", "beacon", "extra1", "extra2", "extra3", "extra4", "spotlight_L", "spotlight_R", "spotlight" }
+  for _, k in ipairs(channels) do
+    if electrics.values[k] ~= nil or (v.data.electrics and v.data.electrics[k]) then
       electrics.values[k] = newState
     end
   end
 
-  -- Native engine calls for sound/internal logic
   if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
   if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
 end
 
 function M.toggleNosecone()
-  if electrics.values.noseconelight ~= nil then
-    electrics.values.noseconelight = (electrics.values.noseconelight == 1) and 0 or 1
-  end
+  if electrics.values.noseconelight ~= nil then electrics.values.noseconelight = (electrics.values.noseconelight == 1) and 0 or 1 end
 end
 
 function M.toggleSpotlight()
@@ -762,13 +758,17 @@ local function detectAuxLightCaps()
     isLED = false, isRack = false
   }
 
-  -- 1. HARDWARE AUDIT: Scan activePartsData
+  -- HARDWARE AUDIT: Standard V-Lua activePartsData scan
   local activeParts = v and v.data and v.data.activePartsData
   if type(activeParts) == "table" then
-    for partName, _ in pairs(activeParts) do
+    for slot, partName in pairs(activeParts) do
       local p = partName:lower()
-      local isLightPart = p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") or p:find("led")
-      if isLightPart then
+      -- Strict Light Detection: Must have light-related keywords
+      local isLightKeyword = p:find("light") or p:find("fog") or p:find("spot") or p:find("led") or p:find("pixel") or p:find("beacon")
+      -- Structural Filter: Exclude common non-light parts that often have 'bar' or 'roof' in name
+      local isStructural = p:find("swaybar") or p:find("bumperbar") or p:find("bullbar") or p:find("sidestep") or p:find("support")
+      
+      if isLightKeyword and not isStructural then
         table.insert(matchedParts, partName)
         if p:find("fog") then caps.hasFog = true end
         if p:find("rack") or p:find("roof") or p:find("top") or p:find("rally") or p:find("bar") then
@@ -783,12 +783,10 @@ local function detectAuxLightCaps()
     end
   end
 
-  -- 2. DYNAMIC FALLBACK
   local vals = electrics and electrics.values or {}
   if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
   if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end
 
-  -- DIAGNOSTIC LOGS
   log("I", "nextMinimalDNA", ">> Audit - Vehicle: " .. vName)
   log("I", "nextMinimalDNA", ">> Audit - Matched Light Parts: " .. table.concat(matchedParts, ", "))
   log("I", "nextMinimalDNA", string.format(">> Audit - Caps - Fog:%s, LBar:%s, Rack:%s, LED:%s", 
