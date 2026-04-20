@@ -727,6 +727,21 @@ function M.toggleFog()
   end
 end
 
+function M.toggleAuxFusion()
+  local newState = 0
+  -- Determinamos el nuevo estado basado en si alguna estÃ¡ encendida
+  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
+    newState = 0
+  else
+    newState = 1
+  end
+
+  -- Aplicamos el estado a todos los canales relevantes de forma atÃ³mica
+  if electrics.values.fog ~= nil then electrics.values.fog = newState end
+  if electrics.values.fog_front ~= nil then electrics.values.fog_front = newState end
+  if electrics.values.lightbar ~= nil then electrics.values.lightbar = newState end
+end
+
 function M.toggleNosecone()
   local vals = electrics and electrics.values or {}
   if vals.noseconelight ~= nil then
