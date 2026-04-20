@@ -764,49 +764,36 @@ local function detectAuxLightCaps()
     hasExtra1 = false, hasExtra2 = false, hasLightbar = false,
     isLED = false, isRack = false
   }
-  if v and v.config and type(v.config.parts) == "table" then
-    for slot, part in pairs(v.config.parts) do
-      local p = string.lower(tostring(part))
+
+  -- ESCANEO DE PIEZAS ACTIVAS (V-Lua Standard)
+  local activeParts = v and v.data and v.data.activePartsData
+  if type(activeParts) == "table" then
+    for partName, _ in pairs(activeParts) do
+      local p = string.lower(tostring(partName))
       if p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") then
         table.insert(lightParts, p)
+        -- DetecciÃ³n de capacidades basada en hardware real
+        if p:find("fog") then caps.hasFog = true end
+        if p:find("rack") or p:find("roof") or p:find("top") or p:find("bar") or p:find("rally") then
+          caps.isRack, caps.hasLightbar = true, true
+        end
+        if p:find("led") then caps.isLED = true; caps.hasLightbar = true end
+        if p:find("nosecone") then caps.hasNosecone = true end
+        if p:find("spotlight") then caps.hasSpotlight = true end
+        if p:find("extra1") then caps.hasExtra1 = true end
+        if p:find("extra2") then caps.hasExtra2 = true end
       end
     end
   end
+
+  -- Fallback sÃ³lo si hay valores activos > 0 en electrics
+  local vals = electrics and electrics.values or {}
+  if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
+  if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end
+
   log("I", "nextMinimalDNA", ">> Vehicle: " .. vName)
   log("I", "nextMinimalDNA", ">> Light parts: " .. table.concat(lightParts, ", "))
-
-  -- ESCANEO DE SLOTS (HUECOS): El mÃ©todo mÃ¡s preciso para detectar hardware real
-  if v and v.config and type(v.config.parts) == "table" then
-    for slot, part in pairs(v.config.parts) do
-      local s = string.lower(tostring(slot))
-      local p = string.lower(tostring(part))
-      
-      if p ~= "" and p ~= "none" then
-        -- ¿Es un slot de niebla?
-        if s:find("fog") then caps.hasFog = true end
-        -- ¿Es un slot de rack o techo con luces?
-        if s:find("rack") or s:find("roof") or s:find("top") or s:find("bar") or s:find("rally") then
-          if p:find("light") or p:find("spot") or p:find("led") or p:find("pixel") then
-            caps.isRack = true
-            caps.hasLightbar = true
-          end
-          if p:find("led") then caps.isLED = true end
-        end
-        -- Otros
-        if s:find("nosecone") then caps.hasNosecone = true end
-        if s:find("spotlight") then caps.hasSpotlight = true end
-        if s:find("extra1") then caps.hasExtra1 = true end
-        if s:find("extra2") then caps.hasExtra2 = true end
-      end
-    end
-  end
-  
-  -- Fallback: canales activos
-  local vals = electrics and electrics.values or {}
-  if not caps.hasFog and (vals.fog ~= nil or vals.fog_front ~= nil) then caps.hasFog = true end
-  if not caps.hasLightbar and vals.lightbar ~= nil then caps.hasLightbar = true end
-
-  log("I", "nextMinimalDNA", string.format("AuxCaps -> Fog:%s, LBar:%s, Rack:%s, LED:%s", 
+  log("I", "nextMinimalDNA", string.format(">> AuxCaps: Fog:%s, LBar:%s, Rack:%s, LED:%s", 
     tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
 
   return caps
