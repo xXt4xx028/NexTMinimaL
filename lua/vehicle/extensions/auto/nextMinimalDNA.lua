@@ -763,17 +763,17 @@ local function detectAuxLightCaps()
   local static = (v and v.data and v.data.electrics) or {}
   
   local caps = {
-    hasFog       = (static.fog ~= nil or static.fog_front ~= nil),
-    hasNosecone  = (static.noseconelight ~= nil),
-    hasSpotlight = (static.spotlight_L ~= nil or static.spotlight_R ~= nil),
-    hasExtra1    = (static.extra1 ~= nil),
-    hasExtra2    = (static.extra2 ~= nil),
-    hasLightbar  = (static.lightbar ~= nil),
+    hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or static.fog ~= nil or static.fog_front ~= nil),
+    hasNosecone  = (vals.noseconelight ~= nil or static.noseconelight ~= nil),
+    hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil or static.spotlight_L ~= nil or static.spotlight_R ~= nil),
+    hasExtra1    = (vals.extra1 ~= nil or static.extra1 ~= nil),
+    hasExtra2    = (vals.extra2 ~= nil or static.extra2 ~= nil),
+    hasLightbar  = (vals.lightbar ~= nil or static.lightbar ~= nil),
     isLED        = false,
     isRack       = false
   }
 
-  -- Escaneo avanzado de piezas instaladas para nomenclatura
+  -- Escaneo avanzado de piezas para nomenclatura
   if v and v.config and type(v.config.parts) == "table" then
     for _, partValue in pairs(v.config.parts) do
       local p = string.lower(tostring(partValue))
@@ -784,9 +784,12 @@ local function detectAuxLightCaps()
     end
   end
   
-  -- Si el escaneo de piezas detectÃ³ rack/led pero el JBEAM no tiene el canal, 
-  -- lo habilitamos para que el botÃ³n aparezca (algunos mods usan canales genÃ©ricos)
+  -- Si detectamos rack o led, habilitamos el canal para asegurar visibilidad del botÃ³n
   if caps.isRack or caps.isLED then caps.hasLightbar = true end
+
+  -- LOG DE DIAGNÃ“STICO PARA CONSOLA (~)
+  log("I", "nextMinimalDNA", string.format("AuxCaps -> Fog:%s, LBar:%s, Rack:%s, LED:%s", 
+    tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
 
   return caps
 end
