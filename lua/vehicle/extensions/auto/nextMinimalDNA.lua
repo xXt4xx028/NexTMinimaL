@@ -841,6 +841,10 @@ function M.toggleJato() if electrics.values.jatoActive ~= nil then electrics.val
 local function buildDNA()
   local dna = { ready = false, vehicle = { name = "", brand = "", config = "" }, engine = collectEngineData(), transmission = { rawType = "unknown", class = "unknown", isManual = false, isAutomatic = false, isDCT = false, isCVT = false, isSequential = false, usesFloat = false, availableModes = {}, selectorModes = {}, currentMode = "", selectorSource = "none", maxGearIndex = 1, minGearIndex = -1, gearCount = 1 }, induction = scanForcedInduction(), drivetrain = collectDrivetrainData(), auxiliary = collectAuxiliaryData(), wheels = collectWheelData(), assists = collectAssistState() }
   if v and v.data and v.data.information then dna.vehicle.name, dna.vehicle.brand, dna.vehicle.config = v.data.information.name or "", v.data.information.brand or "", v.data.information.configuration or "" end
+  
+  -- Sincronizar datos de configuraciÃ³n para nomenclatura de luces
+  dna.auxLightCaps = detectAuxLightCaps()
+  
   local gearbox = powertrain and powertrain.getDevice and powertrain.getDevice("gearbox")
   local fallbackTx = getTransmissionFallbackData(); local rawTxType, cls = resolveTransmissionType(gearbox, fallbackTx)
   for k, val in pairs(cls) do dna.transmission[k] = val end
