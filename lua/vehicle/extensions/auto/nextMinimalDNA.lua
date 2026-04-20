@@ -464,6 +464,20 @@ local function normalizeDeviceLabel(name, uiName, devType)
   return name
 end
 
+local function isDeviceConnectedToWheel(dev)
+  if not dev then return false end
+  if dev.type == "wheel" then 
+    local wh = wheels and wheels.wheels and wheels.wheels[dev.wheelID]
+    return wh and not wh.isBroken
+  end
+  if type(dev.children) == "table" then
+    for _, child in ipairs(dev.children) do
+      if isDeviceConnectedToWheel(child) then return true end
+    end
+  end
+  return false
+end
+
 local function scanToggleableDevices()
   local result = {}
   if not powertrain then return result end
@@ -490,7 +504,17 @@ local function scanToggleableDevices()
        and not string.find(dTypeLow, "axle") and not string.find(dTypeLow, "outputshaft")
        and not string.find(dTypeLow, "^shaft") then return end
     local modes = extractModes(dev); if #modes < 2 then return end
-    seen[dev.name] = true; table.insert(result, { id = dev.name, label = normalizeDeviceLabel(dev.name, dev.uiName, dType), mode = type(dev.mode) == "string" and dev.mode or "", isActive = evalDeviceActive(dev, forcedType), devType = dType, modes = modes, lua = string.format("powertrain.toggleDeviceMode(%q)", dev.name) })
+    seen[dev.name] = true; 
+    table.insert(result, { 
+      id = dev.name, 
+      label = normalizeDeviceLabel(dev.name, dev.uiName, dType), 
+      mode = type(dev.mode) == "string" and dev.mode or "", 
+      isActive = evalDeviceActive(dev, forcedType), 
+      devType = dType, 
+      modes = modes, 
+      isHidden = not isDeviceConnectedToWheel(dev),
+      lua = string.format("powertrain.toggleDeviceMode(%q)", dev.name) 
+    })
   end
   if powertrain.getDevicesByType then for _, t in ipairs({"transferCase", "rangeBox", "differential", "splitShaft", "shaft"}) do local devs = powertrain.getDevicesByType(t); if type(devs) == "table" then for _, dev in ipairs(devs) do tryAddDevice(dev, t) end end end end
   if v and v.data and v.data.powertrain then for key, entry in pairs(v.data.powertrain) do local candidateName = type(key) == "string" and key or (type(entry) == "table" and (entry.name or entry.deviceName or nil)); if candidateName then tryAddDevice(powertrain.getDevice(candidateName)) end end end

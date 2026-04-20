@@ -55,7 +55,7 @@ var NXS_STARTER_TEMPLATE = `
   <!-- DRIVETRAIN CHIPS -->
   <div class="nxs-sect" ng-if="drivetrainButtons.length > 0">
     <div class="nxs-sect-ttl">DRIVETRAIN</div>
-    <div class="nxs-chips">
+    <div class="nxs-chips" ng-class="{'nxs-narrow-layout': data.isNarrow}">
       <span ng-repeat="btn in drivetrainButtons"
             class="nxs-chip"
             ng-class="btn.active ? 'nxs-chip-active' : 'nxs-chip-off'"
@@ -194,8 +194,17 @@ var nxtStarterDirective = function ($timeout) {
 
       scope.luaMeta           = createLuaMeta();
       scope.starter           = createStarterState();
-      scope.data              = { escActive: false, escModeOff: false, absActive: false, tcsActive: false };
+      scope.data              = { 
+        escActive: false, escModeOff: false, absActive: false, tcsActive: false,
+        isNarrow: false
+      };
       scope.drivetrainButtons = [];
+
+      scope.$on('app:resized', function (event, data) {
+        scope.$evalAsync(function () {
+          scope.data.isNarrow = (data.width < 210);
+        });
+      });
 
       function cssClassForDevice(dev) {
         var devType = (dev.devType || '').toLowerCase();
