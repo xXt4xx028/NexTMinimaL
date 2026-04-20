@@ -717,17 +717,20 @@ end
 
 function M.toggleAuxFusion()
   local newState = 1
+  -- Determine new state based on primary channels
   if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
     newState = 0
   end
 
-  local channels = { "fog", "fog_front", "fog_rear", "lightbar", "beacon", "extra1", "extra2", "extra3", "extra4", "spotlight_L", "spotlight_R", "spotlight" }
-  for _, k in ipairs(channels) do
-    if electrics.values[k] ~= nil or (v.data.electrics and v.data.electrics[k]) then
+  -- BRUTE FORCE: Loop through all electrics and force anything that looks like aux lights
+  for k, _ in pairs(electrics.values) do
+    local lk = string.lower(k)
+    if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spot") then
       electrics.values[k] = newState
     end
   end
 
+  -- Native engine calls for sound/internal logic
   if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
   if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
 end
