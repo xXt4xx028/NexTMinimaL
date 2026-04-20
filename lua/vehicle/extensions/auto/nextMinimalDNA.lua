@@ -831,8 +831,8 @@ local function getVehicleDNA()
 end
 
 local function postponedDNA()
-  getVehicleDNA() -- Intento inmediato
-  if obj and obj.postpone then obj:postpone(getVehicleDNA) end -- Re-intento de seguridad
+  if obj and obj.postpone(getVehicleDNA) then return end
+  getVehicleDNA()
 end
 
 M.onExtensionLoaded = function() postponedDNA() end
