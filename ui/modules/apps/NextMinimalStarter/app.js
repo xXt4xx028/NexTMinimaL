@@ -267,20 +267,14 @@ var nxtStarterDirective = function ($timeout) {
         // Dynamic fusion of FOG + LIGHTBAR (Rack/LED)
         if (caps.hasFog || caps.hasLightbar) {
           var label = "FOG";
-          if (caps.hasFog && caps.hasLightbar) {
-            var vName = (scope.luaMeta.vehicle.config || "").toLowerCase();
-            var suffix = (vName.indexOf("led") !== -1) ? "LED" : "RACK";
-            label = "FOG + " + suffix;
-          } else if (caps.hasLightbar) {
-            label = "RACKLIGHTS";
-          }
+          if (caps.isLED) label = caps.hasFog ? "FOG + LED" : "LED BAR";
+          else if (caps.isRack) label = caps.hasFog ? "FOG + RACK" : "RACKLIGHTS";
+          
           buttons.push({ id: 'fog_fusion', label: label, luaFn: 'toggleAuxFusion()', stateKey: 'fogActive' });
         }
 
-        if (caps.hasNosecone) buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()', stateKey: 'noseconeOn' });
-        if (caps.hasSpotlight) buttons.push({ id: 'spot', label: 'SPOT', luaFn: 'toggleSpotlight()', stateKey: 'spotlightOn' });
-        if (caps.hasExtra1) buttons.push({ id: 'extra1', label: 'AUX 1', luaFn: 'toggleExtra1()', stateKey: 'extra1On' });
-        if (caps.hasExtra2) buttons.push({ id: 'extra2', label: 'AUX 2', luaFn: 'toggleExtra2()', stateKey: 'extra2On' });
+        if (caps.hasNosecone)  buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()',  stateKey: 'noseconelight' });
+        if (caps.hasSpotlight) buttons.push({ id: 'spot',     label: 'SPOT',     luaFn: 'toggleSpotlight()', stateKey: 'spotlightOn' });
 
         scope.auxLightButtons = buttons;
       }
