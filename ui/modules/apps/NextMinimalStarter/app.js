@@ -181,6 +181,7 @@ var nxtStarterDirective = function ($timeout) {
       function createLuaMeta() {
         return {
           ready: false,
+          vehicle: { name: '', brand: '', config: '' },
           transmission: { isManual: false },
           drivetrain: {
             fDiff: { installed: false, state: 0 },
