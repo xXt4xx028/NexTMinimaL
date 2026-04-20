@@ -722,130 +722,10 @@ function M.toggleAuxFusion()
     newState = 0
   end
 
-  -- MASTER ACTION: Loop through all electrics and turn on anything that looks auxiliary
-  for k, _ in pairs(electrics.values) do
-    local lk = string.lower(k)
-    if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spotlight") then
-      electrics.values[k] = newState
-    end
-  end
-
-  -- Helper for the sound engine and internal logic
-  if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
-  if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
-end
-
-function M.toggleNosecone()
-  if electrics.values.noseconelight ~= nil then
-    electrics.values.noseconelight = (electrics.values.noseconelight == 1) and 0 or 1
-  end
-end
-
-function M.toggleSpotlight()
-  local newState = (electrics.values.spotlight_L == 1 or electrics.values.spotlight_R == 1) and 0 or 1
-  if electrics.values.spotlight_L ~= nil then electrics.values.spotlight_L = newState end
-  if electrics.values.spotlight_R ~= nil then electrics.values.spotlight_R = newState end
-end
-
-function M.toggleLightbar()
-  if electrics.set_lightbar_signal then electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1) end
-end
-function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
-function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
-
-local function detectAuxLightCaps()
-  local vName = (v and v.data and v.data.information and v.data.information.name) or "Unknown"
-  local lightParts = {}
-  local caps = {
-    hasFog = false, hasNosecone = false, hasSpotlight = false,
-    hasExtra1 = false, hasExtra2 = false, hasLightbar = false,
-    isLED = false, isRack = false
-  }
-
-  -- PHYSICAL USER CONFIG SCAN
-  local parts = v and v.config and v.config.parts
-  if type(parts) == "table" then
-    for _, partValue in pairs(parts) do
-      local p = string.lower(tostring(partValue))
-      if p ~= "" and p ~= "none" then
-        -- Search for light traces
-        if p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") or p:find("led") then
-          table.insert(lightParts, p)
-          
-          if p:find("fog") then caps.hasFog = true end
-          if p:find("rack") or p:find("roof") or p:find("top") or p:find("rally") then
-            caps.isRack, caps.hasLightbar = true, true
-          end
-          if p:find("led") or p:find("bar") then caps.isLED, caps.hasLightbar = true, true end
-          if p:find("nosecone") then caps.hasNosecone = true end
-          if p:find("spotlight") then caps.hasSpotlight = true end
-          if p:find("extra1") then caps.hasExtra1 = true end
-          if p:find("extra2") then caps.hasExtra2 = true end
-        end
-      end
-    end
-  end
-
-  -- Fallback for active electrics channels only
-  local vals = electrics and electrics.values or {}
-  if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
-  if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end
-
-  log("I", "nextMinimalDNA", ">> Vehicle: " .. vName)
-  log("I", "nextMinimalDNA", ">> Light parts found: " .. (#lightParts > 0 and table.concat(lightParts, ", ") or "NONE"))
-  log("I", "nextMinimalDNA", string.format(">> AuxCaps: Fog:%s, LBar:%s, Rack:%s, LED:%s", 
-    tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
-
-  return caps
-end
-
-function M.setIgnition(level)
-  level = math.floor(math.max(0, math.min(3, tonumber(level) or 0)))
-  local ok = false; local vc = controller and controller.getController and controller.getController("vehicleController")
-  if type(vc) == "table" and type(vc.setIgnitionLevel) == "function" then local callOk = pcall(vc.setIgnitionLevel, level); if callOk then ok = true end end
-  if not ok and electrics and type(electrics.set_ignition_level) == "function" then pcall(electrics.set_ignition_level, level) end
-end
-
-function M.nextDriveMode()
-  local dm = controller and controller.getController and controller.getController('driveModes')
-  if type(dm) == "table" and type(dm.nextDriveMode) == "function" then dm.nextDriveMode(); return end
-  if esc and type(esc.toggleESCMode) == "function" then esc.toggleESCMode() end
-end
-
-function M.toggleEsc()
-  local escCtrl = controller and controller.getController and controller.getController('esc')
-  if type(escCtrl) == "table" and type(escCtrl.toggleESCMode) == "function" then escCtrl.toggleESCMode(); return end
-  if esc and type(esc.toggleESCMode) == "function" then esc.toggleESCMode() end
-end
-
-function M.toggleDevice(id)
-  -- Try as driveModes controller first
-  if controller and controller.getController then
-    local ctrl = controller.getController(id)
-    if ctrl and type(ctrl.nextDriveMode) == "function" then
-      ctrl.nextDriveMode()
-      return
-    end
-  end
-  -- Fallback to standard powertrain device
-  if powertrain and type(powertrain.toggleDeviceMode) == "function" then
-    local dev = powertrain.getDevice and powertrain.getDevice(id)
-    if dev and (type(dev.availableModes) == "table" or type(dev.diffType) == "table" or type(dev.gearRatios) == "table") then
-      powertrain.toggleDeviceMode(id)
-    end
-  end
-end
-function M.toggleAuxFusion()
-  local newState = 1
-  -- Determine new state based on primary channels
-  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
-    newState = 0
-  end
-
   -- BRUTE FORCE: Loop through all electrics and force anything that looks like aux lights
   for k, _ in pairs(electrics.values) do
     local lk = string.lower(k)
-    if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spotlight") then
+    if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spot") then
       electrics.values[k] = newState
     end
   end
@@ -882,36 +762,33 @@ local function detectAuxLightCaps()
     isLED = false, isRack = false
   }
 
-  -- 1. HARDWARE AUDIT: Scan every installed part
-  if v and v.config and type(v.config.parts) == "table" then
-    for slot, part in pairs(v.config.parts) do
-      local s = string.lower(tostring(slot))
-      local p = string.lower(tostring(part))
-      if p ~= "" and p ~= "none" then
-        -- Match logic
-        local isLight = s:find("light") or s:find("fog") or s:find("bar") or s:find("spot") or s:find("extra")
-        if isLight then 
-          table.insert(matchedParts, p) 
-          if s:find("fog") then caps.hasFog = true end
-          if s:find("rack") or s:find("roof") or s:find("top") or s:find("bar") or s:find("rally") then
-            caps.isRack, caps.hasLightbar = true, true
-          end
-          if p:find("led") or p:find("pixel") then caps.isLED, caps.hasLightbar = true, true end
-          if s:find("nosecone") then caps.hasNosecone = true end
-          if s:find("spotlight") then caps.hasSpotlight = true end
-          if s:find("extra1") then caps.hasExtra1 = true end
-          if s:find("extra2") then caps.hasExtra2 = true end
+  -- 1. HARDWARE AUDIT: Scan activePartsData
+  local activeParts = v and v.data and v.data.activePartsData
+  if type(activeParts) == "table" then
+    for partName, _ in pairs(activeParts) do
+      local p = partName:lower()
+      local isLightPart = p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") or p:find("led")
+      if isLightPart then
+        table.insert(matchedParts, partName)
+        if p:find("fog") then caps.hasFog = true end
+        if p:find("rack") or p:find("roof") or p:find("top") or p:find("rally") or p:find("bar") then
+          caps.isRack, caps.hasLightbar = true, true
         end
+        if p:find("led") or p:find("pixel") then caps.isLED, caps.hasLightbar = true, true end
+        if p:find("nosecone") then caps.hasNosecone = true end
+        if p:find("spot") then caps.hasSpotlight = true end
+        if p:find("extra1") then caps.hasExtra1 = true end
+        if p:find("extra2") then caps.hasExtra2 = true end
       end
     end
   end
 
-  -- 2. DYNAMIC AUDIT: Check active electrics channels
+  -- 2. DYNAMIC FALLBACK
   local vals = electrics and electrics.values or {}
   if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
   if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end
 
-  -- DIAGNOSTIC LOGS (ASCII ONLY)
+  -- DIAGNOSTIC LOGS
   log("I", "nextMinimalDNA", ">> Audit - Vehicle: " .. vName)
   log("I", "nextMinimalDNA", ">> Audit - Matched Light Parts: " .. table.concat(matchedParts, ", "))
   log("I", "nextMinimalDNA", string.format(">> Audit - Caps - Fog:%s, LBar:%s, Rack:%s, LED:%s", 
