@@ -729,52 +729,66 @@ end
 
 function M.toggleAuxFusion()
   local newState = 0
-  -- Determinamos el nuevo estado basado en si alguna estÃ¡ encendida
-  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
+  -- Determinamos el nuevo estado basado en si alguna estÃ¡ encendida (incluyendo Extras)
+  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or 
+     (electrics.values.lightbar == 1) or (electrics.values.extra1 == 1) or 
+     (electrics.values.extra2 == 1) then
     newState = 0
   else
     newState = 1
   end
 
-  -- Aplicamos el estado a todos los canales relevantes de forma atÃ³mica
+  -- Aplicamos el estado a todos los canales relevantes
   if electrics.values.fog ~= nil then electrics.values.fog = newState end
   if electrics.values.fog_front ~= nil then electrics.values.fog_front = newState end
   if electrics.values.lightbar ~= nil then electrics.values.lightbar = newState end
+  if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
+  if electrics.values.extra2 ~= nil then electrics.values.extra2 = newState end
 end
 
 function M.toggleNosecone()
-  local vals = electrics and electrics.values or {}
-  if vals.noseconelight ~= nil then
-    electrics.values.noseconelight = 1 - (electrics.values.noseconelight or 0)
+  if electrics.values.noseconelight ~= nil then
+    electrics.values.noseconelight = (electrics.values.noseconelight == 1) and 0 or 1
   end
 end
 
 function M.toggleSpotlight()
-  local vals = electrics and electrics.values or {}
-  local newState
-  if vals.spotlight_L ~= nil then
-    newState = 1 - (electrics.values.spotlight_L or 0)
-    electrics.values.spotlight_L = newState
-  end
-  if vals.spotlight_R ~= nil then
-    electrics.values.spotlight_R = newState ~= nil and newState or (1 - (electrics.values.spotlight_R or 0))
-  end
+  local newState = (electrics.values.spotlight_L == 1 or electrics.values.spotlight_R == 1) and 0 or 1
+  if electrics.values.spotlight_L ~= nil then electrics.values.spotlight_L = newState end
+  if electrics.values.spotlight_R ~= nil then electrics.values.spotlight_R = newState end
 end
 
-function M.toggleLightbar() electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1) end
+function M.toggleLightbar()
+  if electrics.values.lightbar ~= nil then
+    electrics.values.lightbar = (electrics.values.lightbar == 1) and 0 or 1
+  end
+end
 function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
 function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
 
 local function detectAuxLightCaps()
   local vals = electrics and electrics.values or {}
-  return {
+  local caps = {
     hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or vals.fog_rear ~= nil or vals.foglight ~= nil),
     hasNosecone  = (vals.noseconelight ~= nil),
     hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil),
     hasExtra1    = (vals.extra1 ~= nil),
     hasExtra2    = (vals.extra2 ~= nil),
     hasLightbar  = (vals.lightbar ~= nil),
+    isLED        = false,
+    isRack       = false
   }
+
+  -- Escaneo avanzado de piezas instaladas
+  if v and v.config and type(v.config.parts) == "table" then
+    for _, partValue in pairs(v.config.parts) do
+      local p = string.lower(tostring(partValue))
+      if p:find("led") or p:find("pixel") then caps.isLED = true end
+      if p:find("rack") or p:find("roof") or p:find("bar") or p:find("rally") then caps.isRack = true end
+    end
+  end
+
+  return caps
 end
 
 function M.setIgnition(level)
