@@ -371,17 +371,20 @@ var nxtTachoDirective = function ($timeout) {
       
       scope.toggleParkingLights = function() {
         var next = (scope.data.lights === 'park') ? 0 : 1;
-        bngApi.activeObjectLua('electrics.set_lights_state(' + next + ')');
+        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
       
       scope.toggleLowBeam = function() {
-        var next = (scope.data.lights === 'low') ? 0 : 2;
-        bngApi.activeObjectLua('electrics.set_lights_state(' + next + ')');
+        var next = (scope.data.lights === 'low') ? 0 : 1;
+        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
 
-      scope.toggleHighbeam = function() { bngApi.activeObjectLua('electrics.toggle_highbeam()'); };
+      scope.toggleHighbeam = function() { 
+        var next = (scope.data.lights === 'high') ? 1 : 2;
+        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
+      };
       scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
-      scope.toggleParkingBrake = function() { bngApi.activeObjectLua('electrics.toggle_parkingbrake()'); };
+      scope.toggleParkingBrake = function() { bngApi.activeObjectLua('input.event("parkingbrake", electrics.values.parkingbrake > 0.5 and 0 or 1)'); };
       scope.toggleLightbar = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleLightbar()'); };
 
       scope.$on('app:resized', function (event, data) {
