@@ -371,12 +371,12 @@ var nxtTachoDirective = function ($timeout) {
       
       scope.toggleParkingLights = function() {
         var next = (scope.data.lights === 'park') ? 0 : 1;
-        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
+        bngApi.activeObjectLua('electrics.set_lights_state(' + next + ')');
       };
       
       scope.toggleLowBeam = function() {
         var next = (scope.data.lights === 'low') ? 0 : 2;
-        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
+        bngApi.activeObjectLua('electrics.set_lights_state(' + next + ')');
       };
 
       scope.toggleHighbeam = function() { bngApi.activeObjectLua('electrics.toggle_highbeam()'); };

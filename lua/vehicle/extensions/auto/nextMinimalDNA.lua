@@ -691,8 +691,8 @@ local function pushUpdates(force)
   if force or wSig ~= lastWheelSignature then lastWheelSignature = wSig; guihooks.trigger("NexTMinimaL_Wheels", wd) end
 end
 
-function M.toggleFog() electrics.toggle_fog() end
-function M.toggleLightbar() electrics.toggle_lightbar() end
+function M.toggleFog() electrics.toggle_fog_lights() end
+function M.toggleLightbar() electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1) end
 function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
 function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
 
@@ -700,7 +700,7 @@ function M.setIgnition(level)
   level = math.floor(math.max(0, math.min(3, tonumber(level) or 0)))
   local ok = false; local vc = controller and controller.getController and controller.getController("vehicleController")
   if type(vc) == "table" and type(vc.setIgnitionLevel) == "function" then local callOk = pcall(vc.setIgnitionLevel, level); if callOk then ok = true end end
-  if not ok and electrics and type(electrics.setIgnitionLevel) == "function" then pcall(electrics.setIgnitionLevel, level) end
+  if not ok and electrics and type(electrics.set_ignition_level) == "function" then pcall(electrics.set_ignition_level, level) end
 end
 
 function M.nextDriveMode()
