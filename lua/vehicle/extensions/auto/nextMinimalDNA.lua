@@ -1,9 +1,6 @@
--- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
--- nexTMinimaLDNA â€” Vehicle Telemetry Wrapper (v6.8.2-FIX)
--- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
--- ExtensiÃ³n Lua mejorada que expone la "ficha tÃ©cnica" (DNA) del 
--- vehÃ­culo activo a las UI Apps de NextMinimal.
--- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+-- nexTMinimaLDNA -- Vehicle Telemetry Wrapper (v6.8.2-FIX)
+-- Enhanced Lua extension that exposes the vehicle "DNA" (spec sheet) 
+-- to NextMinimal UI Apps.
 
 local M = {}
 print(">> NexTMinimaL DNA Extension Loaded (v6.8.2-FIX) <<")
@@ -18,7 +15,7 @@ local ASSIST_CLASSIFIERS = {
   esc = { tokens = {"esc", "stability", "yaw"}, patterns = {"_dse_esc", "_esc_"} }
 }
 
--- â”€â”€â”€ ClasificaciÃ³n de transmisiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-- Transmission Classification
 local function classifyTransmission(gbType)
   local lower = string.lower(gbType or "")
   local out = {
@@ -720,12 +717,12 @@ end
 
 function M.toggleAuxFusion()
   local newState = 1
-  -- Determinamos el nuevo estado basado en los canales principales
+  -- Determine new state based on primary channels
   if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
     newState = 0
   end
 
-  -- ACCIÃ“N MAESTRA: Recorremos todos los valores de electrics y encendemos lo que huela a auxiliar
+  -- MASTER ACTION: Loop through all electrics and turn on anything that looks auxiliary
   for k, _ in pairs(electrics.values) do
     local lk = string.lower(k)
     if lk:find("fog") or lk:find("lightbar") or lk:find("extra") or lk:find("beacon") or lk:find("spotlight") then
@@ -733,7 +730,7 @@ function M.toggleAuxFusion()
     end
   end
 
-  -- CortesÃ­a para el motor de sonido y lÃ³gica interna
+  -- Helper for the sound engine and internal logic
   if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
   if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
 end
@@ -765,13 +762,13 @@ local function detectAuxLightCaps()
     isLED = false, isRack = false
   }
 
-  -- ESCANEO DE CONFIGURACIÃ“N DEL USUARIO (FÃ­sico)
+  -- PHYSICAL USER CONFIG SCAN
   local parts = v and v.config and v.config.parts
   if type(parts) == "table" then
     for _, partValue in pairs(parts) do
       local p = string.lower(tostring(partValue))
       if p ~= "" and p ~= "none" then
-        -- Buscar rastro de luces
+        -- Search for light traces
         if p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") or p:find("led") then
           table.insert(lightParts, p)
           
@@ -789,7 +786,7 @@ local function detectAuxLightCaps()
     end
   end
 
-  -- Fallback sÃ³lo por canales activos reales
+  -- Fallback for active electrics channels only
   local vals = electrics and electrics.values or {}
   if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
   if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end

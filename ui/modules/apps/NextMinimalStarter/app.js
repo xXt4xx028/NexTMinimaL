@@ -1,14 +1,11 @@
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// NexTMinimaL Starter â€” Ignition Panel (v6.2)
-// REDISEÃ‘O FUSION: START button ring Â· ignition pill sequence Â· chips
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
 
 var NXS_IGN_STATES = [
-  { id: 'OFF',   label: 'OFF',     hint: 'All systems disabled',            color: 'rgba(255,255,255,0.35)' },
-  { id: 'ACC',   label: 'ACC',     hint: 'Accessory power \u00b7 radio, lights', color: '#ffaa00' },
-  { id: 'IGN',   label: 'IGN',     hint: 'Ignition armed \u00b7 ready to crank', color: '#ffaa00' },
-  { id: 'START', label: 'CRANK',   hint: 'Engine cranking\u2026',           color: '#ff3030' },
-  { id: 'RUN',   label: 'RUN',     hint: 'Engine running',                  color: '#3ddc84' },
+  { id: 'OFF', label: 'OFF', hint: 'All systems disabled', color: 'rgba(255,255,255,0.35)' },
+  { id: 'ACC', label: 'ACC', hint: 'Accessory power \u00b7 radio, lights', color: '#ffaa00' },
+  { id: 'IGN', label: 'IGN', hint: 'Ignition armed \u00b7 ready to crank', color: '#ffaa00' },
+  { id: 'START', label: 'CRANK', hint: 'Engine cranking\u2026', color: '#ff3030' },
+  { id: 'RUN', label: 'RUN', hint: 'Engine running', color: '#3ddc84' },
 ];
 
 var NXS_STARTER_TEMPLATE = `
@@ -209,14 +206,14 @@ var nxtStarterDirective = function ($timeout) {
         };
       }
 
-      scope.luaMeta           = createLuaMeta();
-      scope.starter           = createStarterState();
-      scope.data              = {
+      scope.luaMeta = createLuaMeta();
+      scope.starter = createStarterState();
+      scope.data = {
         escActive: false, escModeOff: false, absActive: false, tcsActive: false,
         isNarrow: false
       };
       scope.drivetrainButtons = [];
-      scope.auxLightButtons   = [];
+      scope.auxLightButtons = [];
 
       scope.$on('app:resized', function (event, data) {
         scope.$evalAsync(function () {
@@ -226,38 +223,38 @@ var nxtStarterDirective = function ($timeout) {
 
       function cssClassForDevice(dev) {
         var devType = (dev.devType || '').toLowerCase();
-        var lowId   = (dev.id     || '').toLowerCase();
-        var low     = (dev.label  || '').toLowerCase();
+        var lowId = (dev.id || '').toLowerCase();
+        var low = (dev.label || '').toLowerCase();
         if (devType.indexOf('transfercase') !== -1 || devType.indexOf('transfer') !== -1 ||
-            lowId.indexOf('transfercase') !== -1  || lowId.indexOf('transfer') !== -1)
+          lowId.indexOf('transfercase') !== -1 || lowId.indexOf('transfer') !== -1)
           return 'nxs-btn-transfer';
         if (devType.indexOf('rangebox') !== -1 || lowId.indexOf('rangebox') !== -1 ||
-            low.indexOf('range') !== -1)
+          low.indexOf('range') !== -1)
           return 'nxs-btn-range';
         if (devType.indexOf('differential') !== -1 || devType.indexOf('lsd') !== -1 ||
-            devType.indexOf('viscous') !== -1 ||
-            lowId.indexOf('diff') !== -1 || lowId.indexOf('split') !== -1 ||
-            low.indexOf('diff') !== -1  || low.indexOf('lock') !== -1 ||
-            lowId.indexOf('axle') !== -1 || low.indexOf('axle') !== -1)
+          devType.indexOf('viscous') !== -1 ||
+          lowId.indexOf('diff') !== -1 || lowId.indexOf('split') !== -1 ||
+          low.indexOf('diff') !== -1 || low.indexOf('lock') !== -1 ||
+          lowId.indexOf('axle') !== -1 || low.indexOf('axle') !== -1)
           return 'nxs-btn-diff';
 
         if (devType.indexOf('shaft') !== -1 || lowId.indexOf('shaft') !== -1 ||
-            low.indexOf('shaft') !== -1)
+          low.indexOf('shaft') !== -1)
           return 'nxs-btn-transfer';
         return 'nxs-btn-4wd';
       }
 
       function rebuildButtons() {
         var raw = scope.luaMeta.toggleableDevices || [];
-        var devices = (Array.isArray(raw) ? raw : Object.values(raw)).filter(function(dev) {
+        var devices = (Array.isArray(raw) ? raw : Object.values(raw)).filter(function (dev) {
           return !dev.isHidden;
         });
-        scope.drivetrainButtons = devices.map(function(dev) {
+        scope.drivetrainButtons = devices.map(function (dev) {
           return {
-            id:     dev.id,
-            label:  dev.label,
-            mode:   dev.mode  || '',
-            class:  cssClassForDevice(dev),
+            id: dev.id,
+            label: dev.label,
+            mode: dev.mode || '',
+            class: cssClassForDevice(dev),
             active: !!dev.isActive
           };
         });
@@ -267,7 +264,7 @@ var nxtStarterDirective = function ($timeout) {
         var caps = scope.luaMeta.auxLightCaps || {};
         var buttons = [];
 
-        // FusiÃ³n DinÃ¡mica de FOG + LIGHTBAR (Rack/LED)
+        // Dynamic fusion of FOG + LIGHTBAR (Rack/LED)
         if (caps.hasFog || caps.hasLightbar) {
           var label = "FOG";
           if (caps.hasFog && caps.hasLightbar) {
@@ -280,20 +277,20 @@ var nxtStarterDirective = function ($timeout) {
           buttons.push({ id: 'fog_fusion', label: label, luaFn: 'toggleAuxFusion()', stateKey: 'fogActive' });
         }
 
-        if (caps.hasNosecone)  buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()',  stateKey: 'noseconeOn'  });
-        if (caps.hasSpotlight) buttons.push({ id: 'spot',     label: 'SPOT',     luaFn: 'toggleSpotlight()', stateKey: 'spotlightOn' });
-        if (caps.hasExtra1)    buttons.push({ id: 'extra1',   label: 'AUX 1',    luaFn: 'toggleExtra1()',    stateKey: 'extra1On'    });
-        if (caps.hasExtra2)    buttons.push({ id: 'extra2',   label: 'AUX 2',    luaFn: 'toggleExtra2()',    stateKey: 'extra2On'    });
+        if (caps.hasNosecone) buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()', stateKey: 'noseconeOn' });
+        if (caps.hasSpotlight) buttons.push({ id: 'spot', label: 'SPOT', luaFn: 'toggleSpotlight()', stateKey: 'spotlightOn' });
+        if (caps.hasExtra1) buttons.push({ id: 'extra1', label: 'AUX 1', luaFn: 'toggleExtra1()', stateKey: 'extra1On' });
+        if (caps.hasExtra2) buttons.push({ id: 'extra2', label: 'AUX 2', luaFn: 'toggleExtra2()', stateKey: 'extra2On' });
 
         scope.auxLightButtons = buttons;
       }
 
       function updateButtonStates(modes) {
         if (!modes) return;
-        angular.forEach(scope.drivetrainButtons, function(btn) {
+        angular.forEach(scope.drivetrainButtons, function (btn) {
           var m = modes[btn.id];
           if (m !== undefined) {
-            btn.mode   = (typeof m === 'object' && m.mode   !== undefined) ? m.mode   : (typeof m === 'string' ? m : btn.mode);
+            btn.mode = (typeof m === 'object' && m.mode !== undefined) ? m.mode : (typeof m === 'string' ? m : btn.mode);
             btn.active = (typeof m === 'object' && m.isActive !== undefined) ? !!m.isActive : btn.active;
           }
         });
@@ -309,10 +306,10 @@ var nxtStarterDirective = function ($timeout) {
       function computeTip() {
         if (scope.starter.hintText) return scope.starter.hintText;
         var s = scope.starter.state;
-        if (s === 'OFF')   return 'SYSTEM OFF';
-        if (s === 'ACC')   return 'ACCESSORIES ON';
+        if (s === 'OFF') return 'SYSTEM OFF';
+        if (s === 'ACC') return 'ACCESSORIES ON';
         if (s === 'START') return 'ENGINE STARTING';
-        if (s === 'RUN')   return 'ENGINE RUNNING';
+        if (s === 'RUN') return 'ENGINE RUNNING';
         var isManual = (scope.luaMeta.transmission || {}).isManual;
         return isManual ? 'CLUTCH + CLICK TO START' : 'BRAKE + P/N + CLICK TO START';
       }
@@ -324,17 +321,17 @@ var nxtStarterDirective = function ($timeout) {
           var isManual = (scope.luaMeta.transmission || {}).isManual;
           scope.starter.hintText = isManual ? 'RELEASED CLUTCH \u2192 CANCELLED' : 'RELEASED BRAKE \u2192 CANCELLED';
           if (scope.starter.hintTimer) $timeout.cancel(scope.starter.hintTimer);
-          scope.starter.hintTimer = $timeout(function() {
+          scope.starter.hintTimer = $timeout(function () {
             scope.starter.hintText = null;
           }, 3000);
         }
       }
 
-      scope.onStarterDown = function($event) {
+      scope.onStarterDown = function ($event) {
         if ($event) $event.preventDefault();
         var level = scope.starter.rawLevel || 0;
         if (scope.starter.state === 'RUN') {
-          // Engine running â†’ click turns off
+
           bngApi.activeObjectLua('extensions.nextMinimalDNA.setIgnition(0)');
         } else if (isSafetyHeld()) {
           scope.starter.isCranking = true;
@@ -345,7 +342,7 @@ var nxtStarterDirective = function ($timeout) {
         }
       };
 
-      scope.onStarterUp = function($event) {
+      scope.onStarterUp = function ($event) {
         if ($event) $event.preventDefault();
         if (scope.starter.isCranking) {
           scope.starter.isCranking = false;
@@ -353,17 +350,17 @@ var nxtStarterDirective = function ($timeout) {
         }
       };
 
-      scope.nextDriveMode  = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.nextDriveMode()'); };
-      scope.toggleDevice   = function(id) { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleDevice("' + id + '")'); };
-      scope.toggleNos      = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleNos()'); };
-      scope.toggleJato     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleJato()'); };
-      scope.toggleAuxLight = function(btn) { bngApi.activeObjectLua('extensions.nextMinimalDNA.' + btn.luaFn); };
+      scope.nextDriveMode = function () { bngApi.activeObjectLua('extensions.nextMinimalDNA.nextDriveMode()'); };
+      scope.toggleDevice = function (id) { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleDevice("' + id + '")'); };
+      scope.toggleNos = function () { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleNos()'); };
+      scope.toggleJato = function () { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleJato()'); };
+      scope.toggleAuxLight = function (btn) { bngApi.activeObjectLua('extensions.nextMinimalDNA.' + btn.luaFn); };
 
       var dnaCatchUpTimer = null;
       function clearCatchUp() { if (dnaCatchUpTimer !== null) { $timeout.cancel(dnaCatchUpTimer); dnaCatchUpTimer = null; } }
       function scheduleCatchUp(delayMs) {
         clearCatchUp();
-        dnaCatchUpTimer = $timeout(function() {
+        dnaCatchUpTimer = $timeout(function () {
           dnaCatchUpTimer = null;
           if (!scope.luaMeta.ready && typeof bngApi !== 'undefined' && bngApi.activeObjectLua) {
             bngApi.activeObjectLua('extensions.nextMinimalDNA.getVehicleDNA()');
@@ -375,72 +372,72 @@ var nxtStarterDirective = function ($timeout) {
         if (scope.starter && scope.starter.hintTimer) $timeout.cancel(scope.starter.hintTimer);
         scope.luaMeta = createLuaMeta();
         scope.starter = createStarterState();
-        scope.data    = { escActive: false, escModeOff: false, absActive: false, tcsActive: false };
+        scope.data = { escActive: false, escModeOff: false, absActive: false, tcsActive: false };
         scope.drivetrainButtons = [];
-        scope.auxLightButtons   = [];
+        scope.auxLightButtons = [];
       }
 
-      scope.$on('NexTMinimaL_DNA', function(event, dna) {
+      scope.$on('NexTMinimaL_DNA', function (event, dna) {
         if (!dna || !dna.ready) return;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           clearCatchUp();
-          scope.luaMeta.ready             = true;
-          scope.luaMeta.transmission      = dna.transmission || createLuaMeta().transmission;
-          scope.luaMeta.drivetrain        = dna.drivetrain   || createLuaMeta().drivetrain;
-          scope.luaMeta.auxiliary         = dna.auxiliary    || createLuaMeta().auxiliary;
+          scope.luaMeta.ready = true;
+          scope.luaMeta.transmission = dna.transmission || createLuaMeta().transmission;
+          scope.luaMeta.drivetrain = dna.drivetrain || createLuaMeta().drivetrain;
+          scope.luaMeta.auxiliary = dna.auxiliary || createLuaMeta().auxiliary;
           scope.luaMeta.toggleableDevices = dna.toggleableDevices || [];
-          scope.luaMeta.auxLightCaps      = dna.auxLightCaps || createLuaMeta().auxLightCaps;
+          scope.luaMeta.auxLightCaps = dna.auxLightCaps || createLuaMeta().auxLightCaps;
           rebuildButtons();
           rebuildAuxButtons();
 
           var a = (dna.assists && dna.assists.esc) || {};
-          scope.luaMeta.assists.esc.installed     = typeof a.installed === 'boolean' ? a.installed : null;
+          scope.luaMeta.assists.esc.installed = typeof a.installed === 'boolean' ? a.installed : null;
           scope.luaMeta.assists.esc.hasController = !!a.hasController;
-          scope.luaMeta.assists.esc.enabled       = typeof a.enabled   === 'boolean' ? a.enabled   : null;
-          scope.luaMeta.assists.esc.modeName      = typeof a.modeName  === 'string'  ? a.modeName.trim() : '';
+          scope.luaMeta.assists.esc.enabled = typeof a.enabled === 'boolean' ? a.enabled : null;
+          scope.luaMeta.assists.esc.modeName = typeof a.modeName === 'string' ? a.modeName.trim() : '';
 
           if (dna.assists && dna.assists.abs) scope.luaMeta.assists.abs.installed = dna.assists.abs.installed !== undefined ? dna.assists.abs.installed : null;
           if (dna.assists && dna.assists.tcs) scope.luaMeta.assists.tcs.installed = dna.assists.tcs.installed !== undefined ? dna.assists.tcs.installed : null;
         });
       });
 
-      scope.$on('NexTMinimaL_SystemsUpdate', function(event, data) {
+      scope.$on('NexTMinimaL_SystemsUpdate', function (event, data) {
         if (!data) return;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           if (data.drivetrain) scope.luaMeta.drivetrain = data.drivetrain;
-          if (data.auxiliary)  scope.luaMeta.auxiliary  = data.auxiliary;
+          if (data.auxiliary) scope.luaMeta.auxiliary = data.auxiliary;
           if (data.deviceModes) updateButtonStates(data.deviceModes);
         });
       });
 
-      scope.$on('NexTMinimaL_Assists', function(event, assists) {
+      scope.$on('NexTMinimaL_Assists', function (event, assists) {
         if (!assists) return;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           var a = (assists && assists.esc) || {};
-          if (typeof a.installed === 'boolean') scope.luaMeta.assists.esc.installed     = a.installed;
-          if (typeof a.enabled   === 'boolean') scope.luaMeta.assists.esc.enabled       = a.enabled;
+          if (typeof a.installed === 'boolean') scope.luaMeta.assists.esc.installed = a.installed;
+          if (typeof a.enabled === 'boolean') scope.luaMeta.assists.esc.enabled = a.enabled;
           scope.luaMeta.assists.esc.hasController = !!a.hasController;
-          if (typeof a.modeName  === 'string')  scope.luaMeta.assists.esc.modeName      = a.modeName.trim();
+          if (typeof a.modeName === 'string') scope.luaMeta.assists.esc.modeName = a.modeName.trim();
           if (assists.abs && assists.abs.installed !== undefined) scope.luaMeta.assists.abs.installed = assists.abs.installed;
           if (assists.tcs && assists.tcs.installed !== undefined) scope.luaMeta.assists.tcs.installed = assists.tcs.installed;
         });
       });
 
-      scope.$on('streamsUpdate', function(event, streams) {
+      scope.$on('streamsUpdate', function (event, streams) {
         if (!streams || !streams.electrics) return;
         var e = streams.electrics;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           var level = Math.max(0, Math.min(3, Math.round(typeof e.ignitionLevel === 'number' ? e.ignitionLevel : 0)));
-          var rpm   = e.rpm || e.rpmTacho || 0;
+          var rpm = e.rpm || e.rpmTacho || 0;
           scope.starter.rawLevel = level;
-          scope.starter.lastRpm  = rpm;
+          scope.starter.lastRpm = rpm;
 
           if (level === 2 && rpm > 100) {
-            scope.starter.state   = 'RUN';
-            scope.starter.ignIdx  = 4;
+            scope.starter.state = 'RUN';
+            scope.starter.ignIdx = 4;
           } else {
             var stateNames = { 0: 'OFF', 1: 'ACC', 2: 'IGN', 3: 'START' };
-            scope.starter.state  = stateNames[level] || 'OFF';
+            scope.starter.state = stateNames[level] || 'OFF';
             scope.starter.ignIdx = level;
           }
 
@@ -449,23 +446,23 @@ var nxtStarterDirective = function ($timeout) {
             scope.starter.clutchSafe = (typeof e.clutch === 'number') && (e.clutch > 0.9);
           } else {
             scope.starter.brakeSafe = (typeof e.brake === 'number') && (e.brake > 0.5);
-            scope.starter.gearSafe  = (e.gear === 'P' || e.gear === 'N');
+            scope.starter.gearSafe = (e.gear === 'P' || e.gear === 'N');
           }
 
           if (scope.starter.isCranking && !isSafetyHeld()) abortCrank(true);
 
-          scope.data.escActive  = !!e.escActive;
-          scope.data.absActive  = !!e.absActive;
-          scope.data.tcsActive  = !!e.tcsActive;
+          scope.data.escActive = !!e.escActive;
+          scope.data.absActive = !!e.absActive;
+          scope.data.tcsActive = !!e.tcsActive;
           scope.data.escModeOff = (scope.luaMeta.assists.esc.enabled === false);
           scope.starter.tip = computeTip();
         });
       });
 
-      scope.$on('VehicleChange',       function() { resetState(); scheduleCatchUp(50); });
-      scope.$on('VehicleFocusChanged', function() { resetState(); scheduleCatchUp(50); });
-      scope.$on('VehicleReset',        function() { scheduleCatchUp(50); });
-      scope.$on('$destroy', function() {
+      scope.$on('VehicleChange', function () { resetState(); scheduleCatchUp(50); });
+      scope.$on('VehicleFocusChanged', function () { resetState(); scheduleCatchUp(50); });
+      scope.$on('VehicleReset', function () { scheduleCatchUp(50); });
+      scope.$on('$destroy', function () {
         clearCatchUp();
         if (scope.starter && scope.starter.hintTimer) $timeout.cancel(scope.starter.hintTimer);
         StreamsManager.remove(['electrics']);
@@ -477,5 +474,5 @@ var nxtStarterDirective = function ($timeout) {
 };
 
 angular.module('beamng.apps')
-.directive('nextMinimalStarter', ['$timeout', nxtStarterDirective])
-.directive('nexMinimalStarter',  ['$timeout', nxtStarterDirective]);
+  .directive('nextMinimalStarter', ['$timeout', nxtStarterDirective])
+  .directive('nexMinimalStarter', ['$timeout', nxtStarterDirective]);
