@@ -822,12 +822,23 @@ local function buildDNA()
   return dna
 end
 
-local function getVehicleDNA() local dna = buildDNA(); lastDNA = dna; guihooks.trigger("NexTMinimaL_DNA", dna); pushUpdates(true); return dna end
+local function getVehicleDNA()
+  local dna = buildDNA()
+  lastDNA = dna
+  guihooks.trigger("NexTMinimaL_DNA", dna)
+  pushUpdates(true)
+  return dna
+end
 
-M.onExtensionLoaded = function() getVehicleDNA() end
-M.onReset = function() getVehicleDNA() end
-M.onVehicleResetted = function() getVehicleDNA() end
-M.onPowertrainReset = function() getVehicleDNA() end
+local function postponedDNA()
+  if obj and obj:postpone(getVehicleDNA) then return end
+  getVehicleDNA()
+end
+
+M.onExtensionLoaded = function() postponedDNA() end
+M.onReset = function() postponedDNA() end
+M.onVehicleResetted = function() postponedDNA() end
+M.onPowertrainReset = function() postponedDNA() end
 M.updateGFX = function(dt) pushUpdates(false) end
 M.getVehicleDNA = getVehicleDNA
 
