@@ -28,7 +28,7 @@ var NXT_TACHO_TEMPLATE = `
           <div class="nxt-lt nxt-lt-prk" ng-class="{'nxt-lt-on': data.parking}">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M10 8h3a2.5 2.5 0 0 1 0 5h-3V8z"/><path d="M10 13v3"/></svg>
           </div>
-          <div class="nxt-lt nxt-lt-warn" ng-class="{'nxt-lt-on': data.lightbarActive}">
+          <div class="nxt-lt nxt-lt-warn nxt-clickable" ng-class="{'nxt-lt-on': data.lightbarActive}" ng-click="toggleLightbar()">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="10" width="18" height="4" rx="1"/><path d="M7 10V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><path d="M12 10v4"/></svg>
           </div>
         </div>
@@ -380,12 +380,11 @@ var nxtTachoDirective = function ($timeout) {
       };
 
       scope.toggleHighbeam = function() { 
-        var next = (scope.data.lights === 'high') ? 0 : 2;
-        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
+        bngApi.activeObjectLua('electrics.toggle_highbeam()');
       };
       scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
       scope.toggleParkingBrake = function() { return; };
-      scope.toggleLightbar = function() { return; };
+      scope.toggleLightbar = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleLightbar()'); };
       scope.toggleHazards = function() { return; };
 
       scope.$on('app:resized', function (event, data) {
