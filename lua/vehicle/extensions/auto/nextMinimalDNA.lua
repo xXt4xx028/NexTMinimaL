@@ -504,8 +504,10 @@ local function scanToggleableDevices()
        and not string.find(dTypeLow, "axle") and not string.find(dTypeLow, "outputshaft")
        and not string.find(dTypeLow, "^shaft") then return end
     local modes = extractModes(dev); if #modes < 2 then return end
-    local isHidden = not isDeviceConnectedToWheel(dev)
-    if not isHidden and (dTypeLow:find("transfercase") or dTypeLow:find("transfer_case") or string.lower(dev.name or ""):find("front")) then
+    
+    local label = normalizeDeviceLabel(dev.name, dev.uiName, dType)
+    local isHidden = false
+    if label == "Front Output" or label == "Front Drive" or label == "Front Lock" then
       local diffs = powertrain.getDevicesByType("differential")
       local hasFront = false
       if diffs then
@@ -520,7 +522,7 @@ local function scanToggleableDevices()
     seen[dev.name] = true; 
     table.insert(result, { 
       id = dev.name, 
-      label = normalizeDeviceLabel(dev.name, dev.uiName, dType), 
+      label = label, 
       mode = type(dev.mode) == "string" and dev.mode or "", 
       isActive = evalDeviceActive(dev, forcedType), 
       devType = dType, 
