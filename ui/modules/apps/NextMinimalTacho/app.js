@@ -13,7 +13,7 @@ var NXT_TACHO_TEMPLATE = `
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4 12l8-7v4h7v6h-7v4z"/></svg>
         </div>
         <div class="nxt-light-icons">
-          <div class="nxt-lt nxt-clickable" ng-class="{'nxt-lt-on': data.lights === 'park'}" ng-click="toggleParkingLights()">
+          <div class="nxt-lt nxt-lt-warn nxt-clickable" ng-class="{'nxt-lt-on': data.lightbarActive}" ng-click="toggleLightbar()">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 5v2M12 17v2M5 12h2M17 12h2" stroke-linecap="round"/></svg>
           </div>
           <div class="nxt-lt nxt-clickable" ng-class="{'nxt-lt-on': data.lights === 'low'}" ng-click="toggleLowBeam()">
@@ -27,9 +27,6 @@ var NXT_TACHO_TEMPLATE = `
           </div>
           <div class="nxt-lt nxt-lt-prk" ng-class="{'nxt-lt-on': data.parking}">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M10 8h3a2.5 2.5 0 0 1 0 5h-3V8z"/><path d="M10 13v3"/></svg>
-          </div>
-          <div class="nxt-lt nxt-lt-warn nxt-clickable" ng-class="{'nxt-lt-on': data.lightbarActive}" ng-click="toggleLightbar()">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="10" width="18" height="4" rx="1"/><path d="M7 10V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2"/><path d="M12 10v4"/></svg>
           </div>
         </div>
         <div class="nxt-tsig nxt-tsig-r" ng-class="{'nxt-tsig-on': data.signalR, 'nxt-tsig-hz': data.hazards}">
@@ -74,7 +71,7 @@ var NXT_TACHO_TEMPLATE = `
           <div class="nxt-dash-v nxt-dash-v-boost">{{dispBoost(data.turboBoost)}}<span class="nxt-small"> {{data.boostUnit}}</span></div>
         </div>
         <div ng-if="data.hasSuper" class="nxt-clickable" ng-click="toggleBoostUnit()">
-          <div class="nxt-dash-k">S/CHG</div>
+          <div class="nxt-dash-k">S/C</div>
           <div class="nxt-dash-v nxt-dash-v-boost">{{dispBoost(data.superBoost)}}<span class="nxt-small"> {{data.boostUnit}}</span></div>
         </div>
       </div>
@@ -368,21 +365,21 @@ var nxtTachoDirective = function ($timeout) {
         if (_savedCoolant === 'C' || _savedCoolant === 'F') scope.data.coolantUnit = _savedCoolant;
       } catch (e) {}
       scope.toggleParkingLights = function() {
-        var next = (scope.data.lights === 'park') ? 0 : 1;
-        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
-      };
-      
-      scope.toggleLowBeam = function() {
-        var next = (scope.data.lights === 'low') ? 0 : 2;
+        var next = (scope.data.lights === 'low' || scope.data.lights === 'high') ? 0 : 1;
         bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
 
-      scope.toggleHighbeam = function() { 
-        bngApi.activeObjectLua('electrics.toggle_highbeam()');
+      scope.toggleLowBeam = function() {
+        var next = (scope.data.lights === 'low') ? 0 : 1;
+        bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
-      scope.toggleFog     = function() { bngApi.activeObjectLua('electrics.toggle_fog_lights()'); };
+
+      scope.toggleHighbeam = function() {
+        bngApi.activeObjectLua('electrics.toggle_highbeams()');
+      };
+      scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
       scope.toggleParkingBrake = function() { return; };
-      scope.toggleLightbar = function() { bngApi.activeObjectLua('electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1)'); };
+      scope.toggleLightbar = function() { bngApi.activeObjectLua('electrics.toggle_lightbar_signal()'); };
       scope.toggleHazards = function() { return; };
 
       scope.$on('app:resized', function (event, data) {
@@ -774,11 +771,11 @@ var nxtTachoDirective = function ($timeout) {
           updateDashCols();
 
           if (nextMeta.induction.isQuadTurbo) {
-            scope.data.turboLabel = 'QUAD-T';
+            scope.data.turboLabel = 'QUAD';
           } else if (nextMeta.induction.turboCount >= 3) {
-            scope.data.turboLabel = 'TRI-T';
+            scope.data.turboLabel = 'TRI';
           } else {
-            scope.data.turboLabel = nextMeta.induction.isTwinTurbo ? 'TWIN-T' : 'TURBO';
+            scope.data.turboLabel = nextMeta.induction.isTwinTurbo ? 'TT' : 'TRB';
           }
 
           if (latestElectrics) updateUIModel({ electrics: latestElectrics });
@@ -957,7 +954,9 @@ var nxtTachoDirective = function ($timeout) {
 
           if (e.highbeam) scope.data.lights = 'high';
           else if (e.lowbeam) scope.data.lights = 'low';
-          else if (e.fog_front || e.foglight || e.fog || e.noseconelight || scope.data.fogActive) scope.data.lights = 'fog';
+          else if (e.fog_front || e.foglight || e.fog || e.noseconelight ||
+                   e.spotlight_L || e.spotlight_R || e.beaconlight || e.beacon ||
+                   scope.data.fogActive) scope.data.lights = 'fog';
           else if (e.parkinglight || e.parkinglights) scope.data.lights = 'park';
           else scope.data.lights = 'off';
 
