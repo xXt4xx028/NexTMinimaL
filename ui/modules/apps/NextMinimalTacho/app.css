@@ -243,14 +243,14 @@
 
 .nxt-dash-k {
   font-family: var(--nxt-font-mono);
-  font-size: 8px;
+  font-size: 7px;
   font-weight: 400;
   letter-spacing: 0.35em;
   color: var(--nxt-mute);
 }
 .nxt-dash-v {
   font-family: var(--nxt-font-mono);
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 400;
   margin-top: 1px;
   line-height: 1;
