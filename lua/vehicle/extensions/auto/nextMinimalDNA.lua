@@ -718,24 +718,20 @@ local function pushUpdates(force)
   if force or wSig ~= lastWheelSignature then lastWheelSignature = wSig; guihooks.trigger("NexTMinimaL_Wheels", wd) end
 end
 
-function M.toggleFog()
-  local vals = electrics and electrics.values or {}
-  if vals.fog ~= nil or vals.fog_front ~= nil or vals.fog_rear ~= nil or vals.foglight ~= nil then
-    electrics.toggle_fog_lights()
-  elseif vals.extra1 ~= nil then
-    electrics.values.extra1 = 1 - (electrics.values.extra1 or 0)
-  end
-end
-
 function M.toggleAuxFusion()
   local newState = 1
   if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
     newState = 0
   end
 
+  -- 1. Funciones nativas (efectos de sonido)
   if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
   if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
-  -- Forzar extras si existen
+
+  -- 2. FUERZA BRUTA: Escritura directa de canales (para el rack)
+  electrics.values.fog = newState
+  electrics.values.fog_front = newState
+  electrics.values.lightbar = newState
   if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
   if electrics.values.extra2 ~= nil then electrics.values.extra2 = newState end
 end
@@ -763,31 +759,34 @@ local function detectAuxLightCaps()
   local static = (v and v.data and v.data.electrics) or {}
   
   local caps = {
-    hasFog       = (vals.fog ~= nil or vals.fog_front ~= nil or static.fog ~= nil or static.fog_front ~= nil),
-    hasNosecone  = (vals.noseconelight ~= nil or static.noseconelight ~= nil),
-    hasSpotlight = (vals.spotlight_L ~= nil or vals.spotlight_R ~= nil or static.spotlight_L ~= nil or static.spotlight_R ~= nil),
-    hasExtra1    = (vals.extra1 ~= nil or static.extra1 ~= nil),
-    hasExtra2    = (vals.extra2 ~= nil or static.extra2 ~= nil),
-    hasLightbar  = (vals.lightbar ~= nil or static.lightbar ~= nil),
+    hasFog       = (static.fog ~= nil or static.fog_front ~= nil),
+    hasNosecone  = (static.noseconelight ~= nil),
+    hasSpotlight = (static.spotlight_L ~= nil or static.spotlight_R ~= nil),
+    hasExtra1    = (static.extra1 ~= nil),
+    hasExtra2    = (static.extra2 ~= nil),
+    hasLightbar  = (static.lightbar ~= nil),
     isLED        = false,
     isRack       = false
   }
 
-  -- Escaneo avanzado de piezas para nomenclatura
+  -- Escaneo avanzado de piezas INSTALADAS
   if v and v.config and type(v.config.parts) == "table" then
     for _, partValue in pairs(v.config.parts) do
       local p = string.lower(tostring(partValue))
-      if p:find("led") or p:find("pixel") or p:find("hid") then caps.isLED = true end
-      if p:find("rack") or p:find("roof") or p:find("bar") or p:find("rally") or p:find("top") then 
-        if p:find("light") or p:find("spot") then caps.isRack = true end
+      if p ~= "" and p ~= "none" then
+        -- DetecciÃ³n estricta de LED
+        if (p:find("led") or p:find("pixel")) and (p:find("light") or p:find("bar")) then caps.isLED = true end
+        -- DetecciÃ³n estricta de RACK/BARRA con LUCES
+        if (p:find("rack") or p:find("roof") or p:find("rally") or p:find("top") or p:find("bar")) then
+          if p:find("light") or p:find("spot") then caps.isRack = true end
+        end
       end
     end
   end
   
-  -- Si detectamos rack o led, habilitamos el canal para asegurar visibilidad del botÃ³n
+  -- Forzamos canal si detectamos hardware fÃ­sico
   if caps.isRack or caps.isLED then caps.hasLightbar = true end
 
-  -- LOG DE DIAGNÃ“STICO PARA CONSOLA (~)
   log("I", "nextMinimalDNA", string.format("AuxCaps -> Fog:%s, LBar:%s, Rack:%s, LED:%s", 
     tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
 
