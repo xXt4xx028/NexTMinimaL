@@ -914,80 +914,87 @@ var nxtTachoDirective = function ($timeout) {
           }        }
       }
 
+      var isUpdating = false;
       scope.$on('streamsUpdate', function(event, streams) {
+        if (isUpdating) return;
+        isUpdating = true;
         scope.$evalAsync(function() {
-          if (!streams || !streams.electrics) return;
-          var e = streams.electrics;
-          latestElectrics = e;
-
-          // Speed Smoothing (0.85/0.15)
-          var speedMs = e.wheelspeed || e.airspeed || 0;
-          _speedSmooth = _speedSmooth * 0.85 + speedMs * 0.15;
-          var speedVal = _speedSmooth;
-
           try {
-            if (typeof UiUnits !== 'undefined' && UiUnits.speed) {
-              var conv = UiUnits.speed(speedVal);
-              scope.data.speed = Math.floor(conv.val);
-              scope.data.speedUnit = conv.unit;
-            } else {
+            if (!streams || !streams.electrics) return;
+            var e = streams.electrics;
+            latestElectrics = e;
+
+            // Speed Smoothing (0.85/0.15)
+            var speedMs = e.wheelspeed || e.airspeed || 0;
+            _speedSmooth = _speedSmooth * 0.85 + speedMs * 0.15;
+            var speedVal = _speedSmooth;
+
+            try {
+              if (typeof UiUnits !== 'undefined' && UiUnits.speed) {
+                var conv = UiUnits.speed(speedVal);
+                scope.data.speed = Math.floor(conv.val);
+                scope.data.speedUnit = conv.unit;
+              } else {
+                scope.data.speed = Math.floor(speedVal * 3.6);
+                scope.data.speedUnit = 'km/h';
+              }
+            } catch(err) {
               scope.data.speed = Math.floor(speedVal * 3.6);
-              scope.data.speedUnit = 'km/h';
             }
-          } catch(err) {
-            scope.data.speed = Math.floor(speedVal * 3.6);
-          }
-          scope.data.speedPad = String(scope.data.speed).padStart(3, '0');
+            scope.data.speedPad = String(scope.data.speed).padStart(3, '0');
 
-          // Fuel / temp
-          scope.data.fuel = Math.max(0, Math.min(100, Math.round((e.fuel || 0) * 100)));
-          var t = e.watertemp || 0;
-          scope.data.waterTemp = Math.round(t);
-          scope.data.tempPct = Math.max(0, Math.min(100, ((t - 50) / 80) * 100));
+            // Fuel / temp
+            scope.data.fuel = Math.max(0, Math.min(100, Math.round((e.fuel || 0) * 100)));
+            var t = e.watertemp || 0;
+            scope.data.waterTemp = Math.round(t);
+            scope.data.tempPct = Math.max(0, Math.min(100, ((t - 50) / 80) * 100));
 
-          // Lights cluster
-          scope.data.signalL = (e.signal_L > 0.5);
-          scope.data.signalR = (e.signal_R > 0.5);
-          scope.data.hazards = scope.data.signalL && scope.data.signalR;
-          scope.data.parking = (e.parkingbrake > 0.5);
-          scope.data.lightbarActive = (e.lightbar > 0.5);
+            // Lights cluster
+            scope.data.signalL = (e.signal_L > 0.5);
+            scope.data.signalR = (e.signal_R > 0.5);
+            scope.data.hazards = scope.data.signalL && scope.data.signalR;
+            scope.data.parking = (e.parkingbrake > 0.5);
+            scope.data.lightbarActive = (e.lightbar > 0.5);
 
-          if (e.highbeam) scope.data.lights = 'high';
-          else if (e.lowbeam) scope.data.lights = 'low';
-          else if (e.fog_front || e.foglight || e.fog || e.noseconelight ||
-                   e.spotlight_L || e.spotlight_R || e.beaconlight || e.beacon ||
-                   scope.data.fogActive) scope.data.lights = 'fog';
-          else if (e.parkinglight || e.parkinglights) scope.data.lights = 'park';
-          else scope.data.lights = 'off';
+            if (e.highbeam) scope.data.lights = 'high';
+            else if (e.lowbeam) scope.data.lights = 'low';
+            else if (e.fog_front || e.foglight || e.fog || e.noseconelight ||
+                    e.spotlight_L || e.spotlight_R || e.beaconlight || e.beacon ||
+                    scope.data.fogActive) scope.data.lights = 'fog';
+            else if (e.parkinglight || e.parkinglights) scope.data.lights = 'park';
+            else scope.data.lights = 'off';
 
-          // Warning lights
-          scope.data.checkEngine = (e.checkengine === 1 || e.checkengine === true);
-          scope.data.oilWarning = (e.oil === 1 || e.oil === true);
-          scope.data.fatalError = (e.engineFatalError === 1 || e.engineFatalError === true);
+            // Warning lights
+            scope.data.checkEngine = (e.checkengine === 1 || e.checkengine === true);
+            scope.data.oilWarning = (e.oil === 1 || e.oil === true);
+            scope.data.fatalError = (e.engineFatalError === 1 || e.engineFatalError === true);
 
-          // Boost (live override from electrics)
-          if (e.hasOwnProperty('turboBoost')) { scope.data.hasTurbo = true; scope.data.turboBoost = e.turboBoost || 0; }
-          if (e.hasOwnProperty('superchargerBoost')) { scope.data.hasSuper = true; scope.data.superBoost = e.superchargerBoost || 0; }
-          updateDashCols();
+            // Boost (live override from electrics)
+            if (e.hasOwnProperty('turboBoost')) { scope.data.hasTurbo = true; scope.data.turboBoost = e.turboBoost || 0; }
+            if (e.hasOwnProperty('superchargerBoost')) { scope.data.hasSuper = true; scope.data.superBoost = e.superchargerBoost || 0; }
+            updateDashCols();
 
-          // Gear learning
-          if (typeof e.gear === 'string' && e.gear.length > 0 && e.gear !== '0' && e.gear !== '-1') {
-            if (!scope.luaMeta.learning.seenGears[e.gear]) scope.luaMeta.learning.seenGears[e.gear] = true;
-          }
-          if (typeof e.gear === 'string' && e.gear.length > 0) {
-            var g0 = e.gear.charAt(0);
-            if ((g0 === 'S' || g0 === 'M') && e.gear.length > 1) {
-              var nSuf = parseInt(e.gear.slice(1), 10);
-              if (!isNaN(nSuf) && nSuf > 0) {
-                if (g0 === 'S' && nSuf > scope.luaMeta.learning.maxSIndex) scope.luaMeta.learning.maxSIndex = nSuf;
-                if (g0 === 'M' && nSuf > scope.luaMeta.learning.maxMIndex) scope.luaMeta.learning.maxMIndex = nSuf;
+            // Gear learning
+            if (typeof e.gear === 'string' && e.gear.length > 0 && e.gear !== '0' && e.gear !== '-1') {
+              if (!scope.luaMeta.learning.seenGears[e.gear]) scope.luaMeta.learning.seenGears[e.gear] = true;
+            }
+            if (typeof e.gear === 'string' && e.gear.length > 0) {
+              var g0 = e.gear.charAt(0);
+              if ((g0 === 'S' || g0 === 'M') && e.gear.length > 1) {
+                var nSuf = parseInt(e.gear.slice(1), 10);
+                if (!isNaN(nSuf) && nSuf > 0) {
+                  if (g0 === 'S' && nSuf > scope.luaMeta.learning.maxSIndex) scope.luaMeta.learning.maxSIndex = nSuf;
+                  if (g0 === 'M' && nSuf > scope.luaMeta.learning.maxMIndex) scope.luaMeta.learning.maxMIndex = nSuf;
+                }
               }
             }
-          }
 
-          updateRPM(e, scope);
-          updateGearCarousel(streams, scope);
-          updateThermals(streams.wheelThermalData, scope);
+            updateRPM(e, scope);
+            updateGearCarousel(streams, scope);
+            updateThermals(streams.wheelThermalData, scope);
+          } finally {
+            isUpdating = false;
+          }
         });
       });
 
