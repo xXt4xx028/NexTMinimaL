@@ -367,8 +367,6 @@ var nxtTachoDirective = function ($timeout) {
         var _savedCoolant = window.localStorage && window.localStorage.getItem(COOLANT_UNIT_KEY);
         if (_savedCoolant === 'C' || _savedCoolant === 'F') scope.data.coolantUnit = _savedCoolant;
       } catch (e) {}
-      scope.toggleHazards = function() { bngApi.activeObjectLua('electrics.toggle_warn_signal()'); };
-      
       scope.toggleParkingLights = function() {
         var next = (scope.data.lights === 'park') ? 0 : 1;
         bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
@@ -382,9 +380,9 @@ var nxtTachoDirective = function ($timeout) {
       scope.toggleHighbeam = function() { 
         bngApi.activeObjectLua('electrics.toggle_highbeam()');
       };
-      scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
+      scope.toggleFog     = function() { bngApi.activeObjectLua('electrics.toggle_fog_lights()'); };
       scope.toggleParkingBrake = function() { return; };
-      scope.toggleLightbar = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleLightbar()'); };
+      scope.toggleLightbar = function() { bngApi.activeObjectLua('electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1)'); };
       scope.toggleHazards = function() { return; };
 
       scope.$on('app:resized', function (event, data) {
