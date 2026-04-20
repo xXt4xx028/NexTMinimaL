@@ -1,7 +1,5 @@
-// ════════════════════════════════════════════════════════════════════
-// NexTMinimaL Tacho — Rediseño FUSION (v6.3)
-// TABLERO: lights cluster · rpm bar · speed hero · dash-row · bars · corners · carousel
-// ════════════════════════════════════════════════════════════════════
+// NexTMinimaL Tacho — FUSION Redesign (v6.3)
+// DASHBOARD: lights cluster · rpm bar · speed hero · dash-row · bars · corners · carousel
 
 var NXT_TACHO_TEMPLATE = `
   <div class="bngApp nxt-root">
@@ -251,7 +249,7 @@ var nxtTachoDirective = function ($timeout) {
         if (!modesStr) return ['P', 'R', 'N', 'D'];
         var parts;
         if (modesStr.indexOf(',') !== -1) {
-          parts = modesStr.split(',').filter(function(x) { return x.length > 0; });
+          parts = modesStr.split(',').filter(function (x) { return x.length > 0; });
         } else {
           parts = modesStr.toUpperCase().split('');
         }
@@ -357,32 +355,32 @@ var nxtTachoDirective = function ($timeout) {
       try {
         var _savedCoolant = window.localStorage && window.localStorage.getItem(COOLANT_UNIT_KEY);
         if (_savedCoolant === 'C' || _savedCoolant === 'F') scope.data.coolantUnit = _savedCoolant;
-      } catch (e) {}
-      scope.toggleLowBeam = function() {
+      } catch (e) { }
+      scope.toggleLowBeam = function () {
         var next = (scope.data.lights === 'low') ? 0 : 1;
         bngApi.activeObjectLua('electrics.setLightsState(' + next + ')');
       };
 
-      scope.toggleHighbeam = function() {
+      scope.toggleHighbeam = function () {
         if (scope.data.lights === 'high') {
-          // Ciclo realista apagado: 2 -> 1 -> 0
+          // Realistic cycle off: 2 -> 1 -> 0
           bngApi.activeObjectLua('electrics.setLightsState(1)');
-          $timeout(function() { bngApi.activeObjectLua('electrics.setLightsState(0)'); }, 100);
+          $timeout(function () { bngApi.activeObjectLua('electrics.setLightsState(0)'); }, 100);
         } else {
-          // Ciclo realista encendido: 0 -> 1 -> 2
+          // Realistic cycle on: 0 -> 1 -> 2
           if (scope.data.lights === 'off' || scope.data.lights === 'park') {
             bngApi.activeObjectLua('electrics.setLightsState(1)');
-            $timeout(function() { bngApi.activeObjectLua('electrics.setLightsState(2)'); }, 100);
+            $timeout(function () { bngApi.activeObjectLua('electrics.setLightsState(2)'); }, 100);
           } else {
-            // Si ya estÃ¡ en bajas (1), saltar directo a altas (2)
+            // If already on low beam (1), jump directly to high beam (2)
             bngApi.activeObjectLua('electrics.setLightsState(2)');
           }
         }
       };
-      scope.toggleFog     = function() { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
-      scope.toggleParkingBrake = function() { return; };
-      scope.toggleLightbar = function() { bngApi.activeObjectLua('electrics.toggle_lightbar_signal()'); };
-      scope.toggleHazards = function() { return; };
+      scope.toggleFog = function () { bngApi.activeObjectLua('extensions.nextMinimalDNA.toggleFog()'); };
+      scope.toggleParkingBrake = function () { return; };
+      scope.toggleLightbar = function () { bngApi.activeObjectLua('electrics.toggle_lightbar_signal()'); };
+      scope.toggleHazards = function () { return; };
 
       scope.$on('app:resized', function (event, data) {
         scope.$evalAsync(function () {
@@ -390,22 +388,22 @@ var nxtTachoDirective = function ($timeout) {
         });
       });
 
-      scope.toggleCoolantUnit = function() {
+      scope.toggleCoolantUnit = function () {
         scope.data.coolantUnit = scope.data.coolantUnit === 'C' ? 'F' : 'C';
-        try { window.localStorage && window.localStorage.setItem(COOLANT_UNIT_KEY, scope.data.coolantUnit); } catch (e) {}
+        try { window.localStorage && window.localStorage.setItem(COOLANT_UNIT_KEY, scope.data.coolantUnit); } catch (e) { }
       };
-      scope.toggleBoostUnit   = function() { scope.data.boostUnit   = scope.data.boostUnit   === 'PSI' ? 'BAR' : 'PSI'; };
-      scope.toggleBrakeUnit   = function() { scope.data.brakeUnit   = scope.data.brakeUnit   === 'C' ? 'F' : 'C'; };
+      scope.toggleBoostUnit = function () { scope.data.boostUnit = scope.data.boostUnit === 'PSI' ? 'BAR' : 'PSI'; };
+      scope.toggleBrakeUnit = function () { scope.data.brakeUnit = scope.data.brakeUnit === 'C' ? 'F' : 'C'; };
 
       // Display helpers
-      scope.dispCoolant = function() {
-        return scope.data.coolantUnit === 'F' ? Math.round(scope.data.waterTemp * 9/5 + 32) : scope.data.waterTemp;
+      scope.dispCoolant = function () {
+        return scope.data.coolantUnit === 'F' ? Math.round(scope.data.waterTemp * 9 / 5 + 32) : scope.data.waterTemp;
       };
-      scope.dispBoost = function(psi) {
+      scope.dispBoost = function (psi) {
         return scope.data.boostUnit === 'BAR' ? (psi * 0.0689476).toFixed(2) : (psi || 0).toFixed(1);
       };
-      scope.dispBrake = function(c) {
-        return scope.data.brakeUnit === 'F' ? Math.round(c * 9/5 + 32) : Math.round(c);
+      scope.dispBrake = function (c) {
+        return scope.data.brakeUnit === 'F' ? Math.round(c * 9 / 5 + 32) : Math.round(c);
       };
 
       // Pa (absolute) → gauge PSI
@@ -455,7 +453,7 @@ var nxtTachoDirective = function ($timeout) {
 
       function scheduleDNACatchUp(delayMs) {
         clearDNACatchUp();
-        dnaCatchUpTimer = $timeout(function() {
+        dnaCatchUpTimer = $timeout(function () {
           dnaCatchUpTimer = null;
           if (!scope.luaMeta.ready && typeof bngApi !== 'undefined' && bngApi.activeObjectLua) {
             bngApi.activeObjectLua('extensions.nextMinimalDNA.getVehicleDNA()');
@@ -503,9 +501,9 @@ var nxtTachoDirective = function ($timeout) {
         var expanded = (tx.selectorModes && tx.selectorModes.length > 0)
           ? tx.selectorModes.slice()
           : buildAutoPattern(
-              (tx.availableModes && tx.availableModes.length > 0) ? tx.availableModes.join(',') : (PATTERN_DEFAULTS[tx.class] || 'PRND'),
-              tx.maxGearIndex, (meta.learning && meta.learning.maxSIndex) || 0
-            );
+            (tx.availableModes && tx.availableModes.length > 0) ? tx.availableModes.join(',') : (PATTERN_DEFAULTS[tx.class] || 'PRND'),
+            tx.maxGearIndex, (meta.learning && meta.learning.maxSIndex) || 0
+          );
         var modeSet = {}, hasLetterModes = false;
         for (var i = 0; i < expanded.length; i++) {
           var mode = expanded[i];
@@ -532,7 +530,7 @@ var nxtTachoDirective = function ($timeout) {
           keys.push(k);
         }
         if (keys.length < 3) return null;
-        keys.sort(function(a, b) { return canonicalRank(a) - canonicalRank(b); });
+        keys.sort(function (a, b) { return canonicalRank(a) - canonicalRank(b); });
         return keys;
       }
 
@@ -652,7 +650,7 @@ var nxtTachoDirective = function ($timeout) {
         while (padL.length < 3) padL.unshift('');
         while (padR.length < 3) padR.push('');
         return {
-          slots: [padL[padL.length-3], padL[padL.length-2], padL[padL.length-1], act, padR[0], padR[1], padR[2]],
+          slots: [padL[padL.length - 3], padL[padL.length - 2], padL[padL.length - 1], act, padR[0], padR[1], padR[2]],
           isReverse: (act === 'R' || /^R\d+$/.test(act))
         };
       }
@@ -687,8 +685,8 @@ var nxtTachoDirective = function ($timeout) {
         if (gLabel !== scope.data.gearLabel) {
           scope.data.isShifting = true;
           if (shiftTimeoutPromise) { $timeout.cancel(shiftTimeoutPromise); }
-          shiftTimeoutPromise = $timeout(function() { 
-            scope.data.isShifting = false; 
+          shiftTimeoutPromise = $timeout(function () {
+            scope.data.isShifting = false;
             shiftTimeoutPromise = null;
           }, 200);
         }
@@ -707,9 +705,9 @@ var nxtTachoDirective = function ($timeout) {
         }
       }
 
-      scope.$on('NexTMinimaL_DNA', function(event, dna) {
+      scope.$on('NexTMinimaL_DNA', function (event, dna) {
         if (!dna || !dna.ready) return;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           var tx = dna.transmission || {};
           var eng = dna.engine || {};
           var ind = dna.induction || {};
@@ -784,19 +782,19 @@ var nxtTachoDirective = function ($timeout) {
         });
       });
 
-      scope.$on('NexTMinimaL_Wheels', function(event, wd) {
+      scope.$on('NexTMinimaL_Wheels', function (event, wd) {
         if (!wd) return;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           scope.data.hasTires = !!wd.hasTires;
-          scope.data.tiresDeflated = wd.tiresDeflated || { fl:false, fr:false, rl:false, rr:false };
+          scope.data.tiresDeflated = wd.tiresDeflated || { fl: false, fr: false, rl: false, rr: false };
           scope.data.hasBrakes = !!wd.hasBrakes;
           scope.data.padMaterial = wd.padMaterial || 'street';
         });
       });
 
-      scope.$on('NexTMinimaL_SystemsUpdate', function(event, data) {
+      scope.$on('NexTMinimaL_SystemsUpdate', function (event, data) {
         if (!data) return;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           if (data.auxiliary) {
             var aux = data.auxiliary;
             scope.data.hasNos = !!aux.hasNos;
@@ -822,13 +820,13 @@ var nxtTachoDirective = function ($timeout) {
         scope.data.gearList = uiModel.view.slots;
       }
 
-      scope.getGearClass = function(index, g) {
+      scope.getGearClass = function (index, g) {
         if (index === 3) return scope.data._isReverse ? 'nxt-g-act nxt-g-rev' : 'nxt-g-act';
         if (index === 2 || index === 4) return 'nxt-g-adj';
         return 'nxt-g-far';
       };
 
-      scope.getMiniGearClass = function(index, g) {
+      scope.getMiniGearClass = function (index, g) {
         if (index === 3) return scope.data._isReverse ? 'nxt-mini-act nxt-g-rev' : 'nxt-mini-act';
         return 'nxt-mini-adj';
       };
@@ -843,22 +841,22 @@ var nxtTachoDirective = function ($timeout) {
         _rpmSmooth = _rpmSmooth * 0.88 + rpm * 0.12;
         // Issue Fix: Clamp RPM to 0 to prevent negative values
         _rpmSmooth = Math.max(0, _rpmSmooth);
-        
+
         scope.data.rpm = Math.floor(_rpmSmooth);
         scope.data.rpmPct = Math.max(0, Math.min(100, rpmMax > rpmIdle ? ((rpm - rpmIdle) / (rpmMax - rpmIdle)) * 100 : 0));
 
         // Issue Fix: Redline logic (80-90% warning, >90% critical/redline)
         if (!isElectric && rpm < rpmIdle * 1.25) {
-          scope.data.rpmZone = 'nxt-rpm-idle'; 
+          scope.data.rpmZone = 'nxt-rpm-idle';
           scope.data.rpmBg = '#4fc3f7';
         } else if (rpm > rpmMax * 0.90) {
           scope.data.rpmZone = isElectric ? 'nxt-rpm-ered' : 'nxt-rpm-red';
           scope.data.rpmBg = isElectric ? '#00d4ff' : '#ff3030';
         } else if (rpm > rpmMax * 0.80) {
-          scope.data.rpmZone = 'nxt-rpm-warn'; 
+          scope.data.rpmZone = 'nxt-rpm-warn';
           scope.data.rpmBg = '#ffaa00';
         } else {
-          scope.data.rpmZone = 'nxt-rpm-norm'; 
+          scope.data.rpmZone = 'nxt-rpm-norm';
           scope.data.rpmBg = '#3ddc84';
         }
       }
@@ -875,7 +873,7 @@ var nxtTachoDirective = function ($timeout) {
         var wheels = parseThermalWheels(td);
         if (wheels) {
           var wFL = getWheelData(wheels, 'FL'), wFR = getWheelData(wheels, 'FR'), wRL = getWheelData(wheels, 'RL'), wRR = getWheelData(wheels, 'RR');
-          
+
           var pFL = wFL && (wFL.pressure !== undefined ? wFL.pressure : wFL.tirePressure);
           var pFR = wFR && (wFR.pressure !== undefined ? wFR.pressure : wFR.tirePressure);
           var pRL = wRL && (wRL.pressure !== undefined ? wRL.pressure : wRL.tirePressure);
@@ -913,14 +911,15 @@ var nxtTachoDirective = function ($timeout) {
               rl: btRL > -1 ? rollMean(_brakeBuffers.rl, btRL, 3) : 0,
               rr: btRR > -1 ? rollMean(_brakeBuffers.rr, btRR, 3) : 0
             };
-          }        }
+          }
+        }
       }
 
       var isUpdating = false;
-      scope.$on('streamsUpdate', function(event, streams) {
+      scope.$on('streamsUpdate', function (event, streams) {
         if (isUpdating) return;
         isUpdating = true;
-        scope.$evalAsync(function() {
+        scope.$evalAsync(function () {
           try {
             if (!streams || !streams.electrics) return;
             var e = streams.electrics;
@@ -940,7 +939,7 @@ var nxtTachoDirective = function ($timeout) {
                 scope.data.speed = Math.floor(speedVal * 3.6);
                 scope.data.speedUnit = 'km/h';
               }
-            } catch(err) {
+            } catch (err) {
               scope.data.speed = Math.floor(speedVal * 3.6);
             }
             scope.data.speedPad = String(scope.data.speed).padStart(3, '0');
@@ -961,8 +960,8 @@ var nxtTachoDirective = function ($timeout) {
             if (e.highbeam) scope.data.lights = 'high';
             else if (e.lowbeam) scope.data.lights = 'low';
             else if (e.fog_front || e.foglight || e.fog || e.noseconelight ||
-                    e.spotlight_L || e.spotlight_R || e.beaconlight || e.beacon ||
-                    scope.data.fogActive) scope.data.lights = 'fog';
+              e.spotlight_L || e.spotlight_R || e.beaconlight || e.beacon ||
+              scope.data.fogActive) scope.data.lights = 'fog';
             else if (e.parkinglight || e.parkinglights) scope.data.lights = 'park';
             else scope.data.lights = 'off';
 
@@ -1000,10 +999,10 @@ var nxtTachoDirective = function ($timeout) {
         });
       });
 
-      scope.$on('VehicleChange', function() { resetUIModel(); scheduleDNACatchUp(50); });
-      scope.$on('VehicleFocusChanged', function() { resetUIModel(); scheduleDNACatchUp(50); });
-      scope.$on('VehicleReset', function() { resetUIModel(); scheduleDNACatchUp(50); });
-      scope.$on('$destroy', function() {
+      scope.$on('VehicleChange', function () { resetUIModel(); scheduleDNACatchUp(50); });
+      scope.$on('VehicleFocusChanged', function () { resetUIModel(); scheduleDNACatchUp(50); });
+      scope.$on('VehicleReset', function () { resetUIModel(); scheduleDNACatchUp(50); });
+      scope.$on('$destroy', function () {
         clearDNACatchUp();
         if (shiftTimeoutPromise) { $timeout.cancel(shiftTimeoutPromise); }
         StreamsManager.remove(['electrics', 'wheelThermalData']);
@@ -1016,5 +1015,5 @@ var nxtTachoDirective = function ($timeout) {
 };
 
 angular.module('beamng.apps')
-.directive('nextMinimalTacho', ['$timeout', nxtTachoDirective])
-.directive('nexMinimalTacho', ['$timeout', nxtTachoDirective]);
+  .directive('nextMinimalTacho', ['$timeout', nxtTachoDirective])
+  .directive('nexMinimalTacho', ['$timeout', nxtTachoDirective]);
