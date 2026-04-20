@@ -765,34 +765,37 @@ local function detectAuxLightCaps()
     isLED = false, isRack = false
   }
 
-  -- ESCANEO DE PIEZAS ACTIVAS (V-Lua Standard)
-  local activeParts = v and v.data and v.data.activePartsData
-  if type(activeParts) == "table" then
-    for partName, _ in pairs(activeParts) do
-      local p = string.lower(tostring(partName))
-      if p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") then
-        table.insert(lightParts, p)
-        -- DetecciÃ³n de capacidades basada en hardware real
-        if p:find("fog") then caps.hasFog = true end
-        if p:find("rack") or p:find("roof") or p:find("top") or p:find("bar") or p:find("rally") then
-          caps.isRack, caps.hasLightbar = true, true
+  -- ESCANEO DE CONFIGURACIÃ“N DEL USUARIO (FÃ­sico)
+  local parts = v and v.config and v.config.parts
+  if type(parts) == "table" then
+    for _, partValue in pairs(parts) do
+      local p = string.lower(tostring(partValue))
+      if p ~= "" and p ~= "none" then
+        -- Buscar rastro de luces
+        if p:find("light") or p:find("fog") or p:find("bar") or p:find("spot") or p:find("extra") or p:find("led") then
+          table.insert(lightParts, p)
+          
+          if p:find("fog") then caps.hasFog = true end
+          if p:find("rack") or p:find("roof") or p:find("top") or p:find("rally") then
+            caps.isRack, caps.hasLightbar = true, true
+          end
+          if p:find("led") or p:find("bar") then caps.isLED, caps.hasLightbar = true, true end
+          if p:find("nosecone") then caps.hasNosecone = true end
+          if p:find("spotlight") then caps.hasSpotlight = true end
+          if p:find("extra1") then caps.hasExtra1 = true end
+          if p:find("extra2") then caps.hasExtra2 = true end
         end
-        if p:find("led") then caps.isLED = true; caps.hasLightbar = true end
-        if p:find("nosecone") then caps.hasNosecone = true end
-        if p:find("spotlight") then caps.hasSpotlight = true end
-        if p:find("extra1") then caps.hasExtra1 = true end
-        if p:find("extra2") then caps.hasExtra2 = true end
       end
     end
   end
 
-  -- Fallback sÃ³lo si hay valores activos > 0 en electrics
+  -- Fallback sÃ³lo por canales activos reales
   local vals = electrics and electrics.values or {}
   if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
   if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end
 
   log("I", "nextMinimalDNA", ">> Vehicle: " .. vName)
-  log("I", "nextMinimalDNA", ">> Light parts: " .. table.concat(lightParts, ", "))
+  log("I", "nextMinimalDNA", ">> Light parts found: " .. (#lightParts > 0 and table.concat(lightParts, ", ") or "NONE"))
   log("I", "nextMinimalDNA", string.format(">> AuxCaps: Fog:%s, LBar:%s, Rack:%s, LED:%s", 
     tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
 
