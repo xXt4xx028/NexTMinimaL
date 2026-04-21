@@ -7,6 +7,8 @@ print(">> NexTMinimaL DNA Extension Loaded (v6.8.2-FIX) <<")
 local AV_TO_RPM = 9.549296596425384
 local lastAssistSignature = nil
 local lastWheelSignature = nil
+local auxFogDriven = nil
+local auxProbe = { fog = -1, highbeam = -1, aux = -1 }
 
 local ASSIST_CLASSIFIERS = {
   platform = { patterns = {"_dse", "driving & safety electronics", "race electronics"} },
@@ -698,7 +700,28 @@ local function collectDeviceModes(toggleableDevices)
   return modes
 end
 
+local function probeAuxDriver()
+  if auxFogDriven ~= nil then return end
+  local vals = electrics and electrics.values or {}
+  local fog = (vals.fog == 1 or vals.fog_front == 1) and 1 or 0
+  local hb = (vals.highbeam == 1) and 1 or 0
+  local aux = ((vals.lightbar == 1) or (vals.extra1 == 1) or (vals.extra2 == 1)) and 1 or 0
+  if auxProbe.aux >= 0 and aux ~= auxProbe.aux then
+    if fog ~= auxProbe.fog and hb == auxProbe.highbeam then
+      auxFogDriven = true
+      log("I", "nextMinimalDNA", ">> Audit - Aux Driver: fog-driven (lightbar/extra follows fog)")
+      guihooks.trigger("NexTMinimaL_AuxDriver", { auxFogDriven = true })
+    elseif hb ~= auxProbe.highbeam and fog == auxProbe.fog then
+      auxFogDriven = false
+      log("I", "nextMinimalDNA", ">> Audit - Aux Driver: highbeam-driven (lightbar/extra follows highbeam)")
+      guihooks.trigger("NexTMinimaL_AuxDriver", { auxFogDriven = false })
+    end
+  end
+  auxProbe.fog = fog; auxProbe.highbeam = hb; auxProbe.aux = aux
+end
+
 local function pushUpdates(force)
+  probeAuxDriver()
   local assists = collectAssistState(); local aSig = buildAssistSignature(assists)
   if force or aSig ~= lastAssistSignature then lastAssistSignature = aSig; guihooks.trigger("NexTMinimaL_Assists", assists) end
   local dt, aux = collectDrivetrainData(), collectAuxiliaryData()
@@ -721,43 +744,87 @@ function M.toggleAuxFusion()
     newState = 0
   end
 
-  -- EXHAUSTIVE FORCE TOGGLE: Explicitly set all known auxiliary light channels
-  local channels = { "fog", "fog_front", "fog_rear", "lightbar", "beacon", "extra1", "extra2", "extra3", "extra4", "spotlight_L", "spotlight_R", "spotlight" }
-  for _, k in ipairs(channels) do
-    if electrics.values[k] ~= nil or (v.data.electrics and v.data.electrics[k]) then
-      electrics.values[k] = newState
-    end
+  -- SURGICAL TOGGLE: Only toggle channels that actually exist in the vehicle's definition
+  local caps = detectAuxLightCaps()
+  if caps.hasFog then
+    if electrics.values.fog ~= nil then electrics.values.fog = newState end
+    if electrics.values.fog_front ~= nil then electrics.values.fog_front = newState end
+    if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
   end
 
-  if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
-  if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
-end
+  if caps.hasLightbar then
+    if electrics.values.lightbar ~= nil then electrics.values.lightbar = newState end
+    if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
+  end
 
-function M.toggleNosecone()
-  if electrics.values.noseconelight ~= nil then electrics.values.noseconelight = (electrics.values.noseconelight == 1) and 0 or 1 end
+  -- Fallback for generic extras if they were intended as aux
+  if not caps.hasFog and not caps.hasLightbar then
+    if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
+  end
 end
-
-function M.toggleSpotlight()
-  local newState = (electrics.values.spotlight_L == 1 or electrics.values.spotlight_R == 1) and 0 or 1
-  if electrics.values.spotlight_L ~= nil then electrics.values.spotlight_L = newState end
-  if electrics.values.spotlight_R ~= nil then electrics.values.spotlight_R = newState end
-end
-
-function M.toggleLightbar()
-  if electrics.set_lightbar_signal then electrics.set_lightbar_signal(electrics.values.lightbar == 1 and 0 or 1) end
-end
-function M.toggleExtra1() electrics.values.extra1 = 1 - (electrics.values.extra1 or 0) end
-function M.toggleExtra2() electrics.values.extra2 = 1 - (electrics.values.extra2 or 0) end
 
 local function detectAuxLightCaps()
   local vName = (v and v.data and v.data.information and v.data.information.name) or "Unknown"
-  local matchedParts = {}
   local caps = {
     hasFog = false, hasNosecone = false, hasSpotlight = false,
     hasExtra1 = false, hasExtra2 = false, hasLightbar = false,
     isLED = false, isRack = false
   }
 
+  -- 1. MODERN COMPONENT PROBE (Bastion / Scintilla / 0.32+ vehicles)
+  -- This is the most reliable source for part-specific electrical hardware.
+  if v.data.components and v.data.components.electrics and v.data.components.electrics.customValues then
+    for _, cv in ipairs(v.data.components.electrics.customValues) do
+      local name = tostring(cv[1] or ""):lower()
+      if name == "fog" or name == "fog_front" then caps.hasFog = true end
+      if name == "lightbar" then caps.hasLightbar = true end
+      if name == "nosecone" or name == "noseconelight" then caps.hasNosecone = true end
+    end
+  end
+
+  -- 2. GLOWMAP PROBE (Universal & Robust)
+  -- If something is mapped to glow when 'fog' is on, physical hardware likely exists.
+  if not caps.hasFog and v.data.glowMap then
+    local maybeFog = false
+    for meshName, entries in pairs(v.data.glowMap) do
+      for _, entry in pairs(entries) do
+        local trigger = tostring(entry.ticker or entry.tickerName or entry.ticker_name or ""):lower()
+        if trigger == "fog" or trigger == "fog_front" then
+          local mName = tostring(meshName):lower()
+          -- REFINED HEURISTIC: A valid fog light MUST have visual hardware (glass, lens, housing).
+          -- Generic "filament" meshes are often defined globally in base vehicle JBeams 
+          -- (like D-Series pickup.jbeam) and cause false positives if trusted alone.
+          local isFilament = mName:find("filament") or mName:find("proxy")
+          local isSpecific = mName:find("fog") or mName:find("light")
+          
+          if isSpecific and not isFilament then
+            -- High-confidence: This is a specific fog light mesh (e.g., 'etkc_headlight_L_fog', 'pickup_foglight_glass')
+            caps.hasFog = true
+            break
+          elseif isFilament then
+            -- Low-confidence: Might be a false positive or a legitimate but generic filament.
+            maybeFog = true
+          end
+        end
+      end
+      if caps.hasFog then break end
+    end
+    -- Fallback: If we found ONLY filaments and NO specific fog meshes, we only trust it 
+    -- if we also find a supporting part name or if it's not a known global-polluter (heuristic).
+    -- But usually, real fog setups have at least one non-filament mesh.
+  end
+
+  -- 3. JBEAM DEFINITION FALLBACK (Old vehicles / Mods)
+  -- If glowMap was ambiguous, we check if the vehicle explicitly defines fog electrics.
+  if not caps.hasFog and maybeFog and v.data.electrics then
+    if v.data.electrics["fog"] or v.data.electrics["fog_front"] then
+      -- If we have filaments AND electrics, it's likely real hardware unless it's the D-Series case.
+      -- To avoid the vehicle-name hack, we check if any non-body part contains 'fog'.
+      caps.hasFog = true -- Temporarily optimistic, will be refined by part scan
+    end
+  end
+
+  -- 4. PART-NAME SCAN (Legacy heuristic)
   local activeParts = v and v.data and v.data.activePartsData
   if type(activeParts) == "table" then
     for slot, partData in pairs(activeParts) do
@@ -773,8 +840,7 @@ local function detectAuxLightCaps()
         if not isStructural then
           local isLight = pName:find("light") or pName:find("fog") or pName:find("spot") or pName:find("led") or pName:find("pixel") or pName:find("beacon") or pName:find("extra")
           if isLight then
-            table.insert(matchedParts, pName)
-            if pName:find("fog") then caps.hasFog = true end
+            if not caps.hasFog and (pName:find("fog") or pName:find("noselight") or pName:find("headlightpanel") or (type(slot) == "string" and slot:lower():find("fog"))) then caps.hasFog = true end
             if pName:find("rack") or pName:find("roof") or pName:find("top") or pName:find("rally") or pName:find("bar") then
               caps.isRack, caps.hasLightbar = true, true
             end
@@ -789,14 +855,12 @@ local function detectAuxLightCaps()
     end
   end
 
+  -- 5. RUNTIME STATE VALIDATION
   local vals = electrics and electrics.values or {}
-  if not caps.hasFog and (vals.fog == 1 or vals.fog_front == 1) then caps.hasFog = true end
-  if not caps.hasLightbar and vals.lightbar == 1 then caps.hasLightbar = true end
+  if not caps.hasLightbar and vals.lightbar ~= nil then caps.hasLightbar = true end
 
-  log("I", "nextMinimalDNA", ">> Audit - Vehicle: " .. vName)
-  log("I", "nextMinimalDNA", ">> Audit - Matched Light Parts: " .. table.concat(matchedParts, ", "))
-  log("I", "nextMinimalDNA", string.format(">> Audit - Caps - Fog:%s, LBar:%s, Rack:%s, LED:%s", 
-    tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED)))
+  log("I", "nextMinimalDNA", string.format(">> Audit - Caps - Fog:%s, LBar:%s, Rack:%s, LED:%s, Extra1:%s, Extra2:%s",
+    tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED), tostring(caps.hasExtra1), tostring(caps.hasExtra2)))
 
   return caps
 end
@@ -853,6 +917,7 @@ local function buildDNA()
   dna.transmission.gearCount = (dna.transmission.isAutomatic and #dna.transmission.selectorModes > 0) and #dna.transmission.selectorModes or (dna.transmission.maxGearIndex or 0) + math.abs(dna.transmission.minGearIndex or 0) + 1
   dna.toggleableDevices = scanToggleableDevices()
   dna.auxLightCaps = detectAuxLightCaps()
+  dna.auxFogDriven = auxFogDriven
   dna.ready = true
   return dna
 end
@@ -866,7 +931,7 @@ local function getVehicleDNA()
   return dna
 end
 
-M.onExtensionLoaded = function() initFrames = 10 end
+M.onExtensionLoaded = function() initFrames = 10; auxFogDriven = nil; auxProbe = { fog = -1, highbeam = -1, aux = -1 } end
 M.onReset = function() initFrames = 5 end
 M.onVehicleResetted = function() initFrames = 5 end
 M.onPowertrainReset = function() initFrames = 5 end
