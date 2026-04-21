@@ -395,6 +395,68 @@ local function buildAssistSignature(assists)
 end
 
 local lastDrivetrainSignature, lastAuxiliarySignature, lastDeviceModesSignature, lastDNA = nil, nil, nil, nil
+local dtSnapshot = {}
+local auxSnapshot = {}
+local restorePending = false
+local restoreFrames = -1
+
+local function updateDrivetrainSnapshot()
+  if restorePending or not lastDNA then return end
+  
+  -- Drivetrain Devices
+  if lastDNA.toggleableDevices then
+    for _, entry in ipairs(lastDNA.toggleableDevices) do
+      if not entry.isHidden then
+        local dev = powertrain.getDevice(entry.id)
+        if dev and dev.mode then
+          dtSnapshot[entry.id] = dev.mode
+        end
+      end
+    end
+  end
+  
+  -- Auxiliary Lights
+  local vals = electrics.values
+  auxSnapshot.fog = (vals.fog == 1 or vals.fog_front == 1)
+  auxSnapshot.lightbar = (vals.lightbar == 1)
+  auxSnapshot.extra1 = (vals.extra1 == 1)
+  auxSnapshot.extra2 = (vals.extra2 == 1)
+end
+
+local function applyDrivetrainSnapshot()
+  -- Restore Drivetrain
+  if dtSnapshot and next(dtSnapshot) ~= nil then
+    log("I", "nextMinimalDNA", ">> Restoring Drivetrain Snapshot...")
+    for id, targetMode in pairs(dtSnapshot) do
+      local dev = powertrain.getDevice(id)
+      if dev and dev.mode ~= targetMode then
+        log("I", "nextMinimalDNA", string.format("   Restoring %s: %s -> %s", id, tostring(dev.mode), tostring(targetMode)))
+        powertrain.setDeviceMode(id, targetMode)
+      end
+    end
+  end
+
+  -- Restore Auxiliary Lights
+  if auxSnapshot and next(auxSnapshot) ~= nil then
+    log("I", "nextMinimalDNA", ">> Restoring Auxiliary Snapshot...")
+    local newState = function(cond) return cond and 1 or 0 end
+    if auxSnapshot.fog ~= nil then
+      local val = newState(auxSnapshot.fog)
+      if electrics.values.fog ~= nil then electrics.values.fog = val end
+      if electrics.values.fog_front ~= nil then electrics.values.fog_front = val end
+      if electrics.set_fog_lights then electrics.set_fog_lights(val) end
+    end
+    if auxSnapshot.lightbar ~= nil then
+      local val = newState(auxSnapshot.lightbar)
+      if electrics.values.lightbar ~= nil then electrics.values.lightbar = val end
+      if electrics.set_lightbar_signal then electrics.set_lightbar_signal(val) end
+    end
+    if auxSnapshot.extra1 ~= nil then electrics.values.extra1 = newState(auxSnapshot.extra1) end
+    if auxSnapshot.extra2 ~= nil then electrics.values.extra2 = newState(auxSnapshot.extra2) end
+  end
+
+  restorePending = false
+end
 
 local function buildDrivetrainSignature(dt) return string.format("%s|%s|%s|%s|%s", tostring(dt.fDiff.state), tostring(dt.cDiff.state), tostring(dt.rDiff.state), tostring(dt.mode4wd), tostring(dt.lowRangeActive)) end
 local function buildAuxiliarySignature(aux) return string.format("%s|%s|%.2f|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s", tostring(aux.nosActive), tostring(aux.jatoActive), aux.nosLevel or 0, tostring(aux.fog), tostring(aux.lightbar), tostring(aux.extra1), tostring(aux.extra2), tostring(aux.fogActive), tostring(aux.fogOn), tostring(aux.noseconeOn), tostring(aux.spotlightOn), tostring(aux.extra1On), tostring(aux.extra2On)) end
@@ -736,6 +798,9 @@ local function pushUpdates(force)
   local wd = collectWheelData()
   local wSig = string.format("%s|%s|%s|%s|%s", tostring(wd.tiresDeflated.fl), tostring(wd.tiresDeflated.fr), tostring(wd.tiresDeflated.rl), tostring(wd.tiresDeflated.rr), wd.padMaterial)
   if force or wSig ~= lastWheelSignature then lastWheelSignature = wSig; guihooks.trigger("NexTMinimaL_Wheels", wd) end
+  
+  -- PERSISTENCE: Save state for next reset
+  updateDrivetrainSnapshot()
 end
 
 function M.toggleAuxFusion()
@@ -794,14 +859,14 @@ local function detectAuxLightCaps()
           -- REFINED HEURISTIC: A valid fog light MUST have visual hardware (glass, lens, housing).
           -- Generic "filament" meshes are often defined globally in base vehicle JBeams 
           -- (like D-Series pickup.jbeam) and cause false positives if trusted alone.
-          local isFilament = mName:find("filament") or mName:find("proxy")
-          local isSpecific = mName:find("fog") or mName:find("light")
+          local isGeneric = mName:find("filament") or mName:find("proxy") or mName:find("headlight")
+          local isSpecific = mName:find("fog") or mName:find("noselight") or mName:find("aux")
           
-          if isSpecific and not isFilament then
-            -- High-confidence: This is a specific fog light mesh (e.g., 'etkc_headlight_L_fog', 'pickup_foglight_glass')
+          if isSpecific then
+            -- High-confidence: This is a specific fog/aux mesh (e.g., 'etkc_headlight_L_fog', 'pickup_foglight_glass')
             caps.hasFog = true
             break
-          elseif isFilament then
+          elseif isGeneric then
             -- Low-confidence: Might be a false positive or a legitimate but generic filament.
             maybeFog = true
           end
@@ -858,9 +923,6 @@ local function detectAuxLightCaps()
   -- 5. RUNTIME STATE VALIDATION
   local vals = electrics and electrics.values or {}
   if not caps.hasLightbar and vals.lightbar ~= nil then caps.hasLightbar = true end
-
-  log("I", "nextMinimalDNA", string.format(">> Audit - Caps - Fog:%s, LBar:%s, Rack:%s, LED:%s, Extra1:%s, Extra2:%s",
-    tostring(caps.hasFog), tostring(caps.hasLightbar), tostring(caps.isRack), tostring(caps.isLED), tostring(caps.hasExtra1), tostring(caps.hasExtra2)))
 
   return caps
 end
@@ -931,9 +993,9 @@ local function getVehicleDNA()
   return dna
 end
 
-M.onExtensionLoaded = function() initFrames = 10; auxFogDriven = nil; auxProbe = { fog = -1, highbeam = -1, aux = -1 } end
-M.onReset = function() initFrames = 5 end
-M.onVehicleResetted = function() initFrames = 5 end
+M.onExtensionLoaded = function() initFrames = 10; auxFogDriven = nil; auxProbe = { fog = -1, highbeam = -1, aux = -1 }; dtSnapshot = {}; restorePending = false end
+M.onReset = function() initFrames = 5; restorePending = true; restoreFrames = 15 end
+M.onVehicleResetted = function() initFrames = 5; restorePending = true; restoreFrames = 15 end
 M.onPowertrainReset = function() initFrames = 5 end
 
 M.updateGFX = function(dt)
@@ -941,6 +1003,15 @@ M.updateGFX = function(dt)
     initFrames = initFrames - 1
     if initFrames == 0 then getVehicleDNA() end
   end
+  
+  if restorePending then
+    if restoreFrames > 0 then
+      restoreFrames = restoreFrames - 1
+    else
+      applyDrivetrainSnapshot()
+    end
+  end
+  
   pushUpdates(false)
 end
 
