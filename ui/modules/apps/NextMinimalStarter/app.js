@@ -193,7 +193,8 @@ var nxtStarterDirective = function ($timeout) {
             abs: { installed: null },
             tcs: { installed: null }
           },
-          auxLightCaps: { hasFog: false, hasNosecone: false, hasSpotlight: false, hasExtra1: false, hasExtra2: false, hasLightbar: false }
+          auxLightCaps: { hasFog: false, hasNosecone: false, hasSpotlight: false, hasExtra1: false, hasExtra2: false, hasLightbar: false },
+          auxFogDriven: null
         };
       }
 
@@ -265,7 +266,11 @@ var nxtStarterDirective = function ($timeout) {
         var buttons = [];
 
         // Dynamic fusion of FOG + LIGHTBAR (Rack/LED)
-        if (caps.hasFog || caps.hasLightbar) {
+        // hasFog present: show unless probe confirmed highbeam-driven (optimistic — fog hardware exists)
+        // rack/LED only, no fog parts: show only when probe confirmed fog-driven (pessimistic — no fog hardware)
+        var auxFogDriven = scope.luaMeta.auxFogDriven;
+        var showFogFusion = caps.hasFog ? (auxFogDriven !== false) : (caps.hasLightbar && auxFogDriven === true);
+        if (showFogFusion) {
           var label = "FOG";
           if (caps.isLED) label = caps.hasFog ? "FOG + LED" : "LED BAR";
           else if (caps.isRack) label = caps.hasFog ? "FOG + RACK" : "RACKLIGHTS";
@@ -381,6 +386,7 @@ var nxtStarterDirective = function ($timeout) {
           scope.luaMeta.auxiliary = dna.auxiliary || createLuaMeta().auxiliary;
           scope.luaMeta.toggleableDevices = dna.toggleableDevices || [];
           scope.luaMeta.auxLightCaps = dna.auxLightCaps || createLuaMeta().auxLightCaps;
+          scope.luaMeta.auxFogDriven = (dna.auxFogDriven !== undefined) ? dna.auxFogDriven : null;
           rebuildButtons();
           rebuildAuxButtons();
 
@@ -392,6 +398,14 @@ var nxtStarterDirective = function ($timeout) {
 
           if (dna.assists && dna.assists.abs) scope.luaMeta.assists.abs.installed = dna.assists.abs.installed !== undefined ? dna.assists.abs.installed : null;
           if (dna.assists && dna.assists.tcs) scope.luaMeta.assists.tcs.installed = dna.assists.tcs.installed !== undefined ? dna.assists.tcs.installed : null;
+        });
+      });
+
+      scope.$on('NexTMinimaL_AuxDriver', function (event, data) {
+        if (!data) return;
+        scope.$evalAsync(function () {
+          scope.luaMeta.auxFogDriven = (data.auxFogDriven !== undefined) ? data.auxFogDriven : null;
+          rebuildAuxButtons();
         });
       });
 
