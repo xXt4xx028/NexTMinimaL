@@ -1,0 +1,278 @@
+:root {
+  --color-success: #3ddc84;
+  --color-warning: #ffaa00;
+  --color-error: #ef4444;
+  --color-text-muted: rgba(255, 255, 255, 0.4);
+  --transition-fast: all 0.2s ease;
+}
+
+.nxt-tq-root {
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  user-select: none;
+  font-family: "Consolas", "Courier New", monospace;
+  overflow: hidden;
+}
+
+.nxt-tq-panel {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+}
+
+.nxt-tq-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 14px;
+}
+
+.nxt-tq-lbl {
+  font-size: 9px;
+  letter-spacing: 0.4em;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.nxt-tq-chip {
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  padding: 3px 6px;
+  border: 1px solid;
+  border-radius: 2px;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.nxt-chip-ok {
+  color: var(--color-success);
+  border-color: rgba(61, 220, 132, 0.35);
+  background: rgba(61, 220, 132, 0.05);
+}
+
+.nxt-chip-warn {
+  color: var(--color-warning);
+  border-color: rgba(255, 170, 0, 0.4);
+  background: rgba(255, 170, 0, 0.06);
+}
+
+.nxt-chip-crit {
+  color: var(--color-error);
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.06);
+}
+
+.nxt-chip-unk {
+  color: var(--color-text-muted);
+  border-color: rgba(255, 255, 255, 0.15);
+  background: transparent;
+}
+
+.nxt-tq-metrics {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nxt-tq-metric {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 8px 10px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.nxt-tq-k {
+  font-size: 7px;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nxt-tq-v {
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.nxt-tq-vu {
+  font-size: 10px;
+  opacity: 0.4;
+  margin-left: 4px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.nxt-tq-infobar {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 4px 0;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  align-items: center;
+}
+
+.nxt-tq-leg-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 7px;
+  letter-spacing: 0.15em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nxt-tq-leg-val {
+  font-size: 8px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.nxt-tq-leg-line {
+  width: 14px;
+  height: 0;
+  border-top: 2px solid currentColor;
+}
+
+.nxt-tq-leg-dash {
+  width: 14px;
+  height: 0;
+  border-top: 2px dashed currentColor;
+}
+
+.nxt-tq-chart {
+  position: relative;
+  flex: 10 0 40px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  min-height: 0;
+}
+
+.nxt-tq-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.nxt-tq-footer {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nxt-tq-fcell {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  min-height: 0;
+}
+
+.nxt-tq-fcell-r {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  text-align: right;
+  min-height: 0;
+}
+
+.nxt-tq-pk {
+  font-size: 15px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.nxt-tq-sub {
+  font-size: 6px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 3px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.nxt-tq-delta {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.nxt-delta-ok {
+  color: #3ddc84;
+}
+
+.nxt-delta-warn {
+  color: #ff9e00;
+}
+
+.nxt-delta-crit {
+  color: #ef4444;
+}
+
+/* COMPACT MODE OVERRIDES */
+.nxt-sz-compact .nxt-tq-panel { padding: 6px; gap: 3px; }
+.nxt-sz-compact .nxt-tq-metric { padding: 4px 8px; }
+.nxt-sz-compact .nxt-tq-v { font-size: 20px; }
+.nxt-sz-compact .nxt-tq-vu { font-size: 8px; }
+.nxt-sz-compact .nxt-tq-k { font-size: 6px; margin-bottom: 1px; }
+.nxt-sz-compact .nxt-tq-lbl { font-size: 7px; }
+.nxt-sz-compact .nxt-tq-infobar { padding: 2px 0; gap: 8px; }
+.nxt-sz-compact .nxt-tq-leg-item { font-size: 6px; }
+.nxt-sz-compact .nxt-tq-leg-val { font-size: 7px; }
+.nxt-sz-compact .nxt-tq-leg-line, .nxt-sz-compact .nxt-tq-leg-dash { width: 10px; }
+.nxt-sz-compact .nxt-tq-fcell, .nxt-sz-compact .nxt-tq-fcell-r { padding: 3px 6px; }
+.nxt-sz-compact .nxt-tq-pk { font-size: 12px; }
+.nxt-sz-compact .nxt-tq-delta { font-size: 16px; }
+.nxt-sz-compact .nxt-tq-sub { display: none; }
+.nxt-sz-compact .nxt-tq-hdr { min-height: 10px; }
+
+/* ULTRA COMPACT MODE (Extreme Height/Width Squish) */
+.nxt-sz-ultra .nxt-tq-panel { padding: 4px; gap: 2px; }
+.nxt-sz-ultra .nxt-tq-hdr { position: absolute; top: 4px; right: 4px; z-index: 10; }
+.nxt-sz-ultra .nxt-tq-lbl { display: none; }
+.nxt-sz-ultra .nxt-tq-metric { padding: 2px 4px; }
+.nxt-sz-ultra .nxt-tq-v { font-size: 16px; }
+.nxt-sz-ultra .nxt-tq-vu { font-size: 7px; }
+.nxt-sz-ultra .nxt-tq-footer { display: none; }
+.nxt-sz-ultra .nxt-tq-infobar { padding: 2px 0; gap: 6px; border: none; }
+.nxt-sz-ultra .nxt-tq-leg-label { display: none; }
+.nxt-sz-ultra .nxt-svg-labels { opacity: 0.3; }

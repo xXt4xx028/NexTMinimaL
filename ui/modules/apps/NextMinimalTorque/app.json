@@ -1,0 +1,14 @@
+{
+  "name" : "NexTMinimaL Torque",
+  "author": "NexTMinimaL",
+  "version": "2.2",
+  "description": "High-frequency Torque/HP dynamometer with damage-aware telemetry.",
+  "directive": "nextMinimalTorque",
+  "category": "Dashboard",
+  "isAuxiliary": false,
+  "interactive": "yes",
+  "types": [ "ui.apps.categories.vehicle_info" ],
+  "domElement": "<next-minimal-torque></next-minimal-torque>",
+  "css": { "width": "500px", "height": "200px", "top": "0px", "left": "0px" },
+  "preserveAspectRatio": false
+}
