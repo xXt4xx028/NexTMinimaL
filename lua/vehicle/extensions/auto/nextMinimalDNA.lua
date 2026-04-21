@@ -859,14 +859,14 @@ local function detectAuxLightCaps()
           -- REFINED HEURISTIC: A valid fog light MUST have visual hardware (glass, lens, housing).
           -- Generic "filament" meshes are often defined globally in base vehicle JBeams 
           -- (like D-Series pickup.jbeam) and cause false positives if trusted alone.
-          local isGeneric = mName:find("filament") or mName:find("proxy") or mName:find("headlight")
+          local isShielded = mName:find("filament") or mName:find("proxy") or mName:find("headlight")
           local isSpecific = mName:find("fog") or mName:find("noselight") or mName:find("aux")
           
-          if isSpecific then
+          if isSpecific and not isShielded then
             -- High-confidence: This is a specific fog/aux mesh (e.g., 'etkc_headlight_L_fog', 'pickup_foglight_glass')
             caps.hasFog = true
             break
-          elseif isGeneric then
+          elseif isSpecific or isShielded then
             -- Low-confidence: Might be a false positive or a legitimate but generic filament.
             maybeFog = true
           end
