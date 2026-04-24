@@ -415,7 +415,18 @@ var nxtStarterDirective = function ($timeout) {
           if (data.drivetrain) scope.luaMeta.drivetrain = data.drivetrain;
           if (data.auxiliary) scope.luaMeta.auxiliary = data.auxiliary;
           if (data.deviceModes) updateButtonStates(data.deviceModes);
+          if (data.nosLevel !== undefined) scope.luaMeta.auxiliary.nosLevel = data.nosLevel;
         });
+      });
+
+      scope.$on('ChangePowerTrainButtons', function (event, data) {
+        if (!data || !data.id) return;
+        var idLow = (data.id || '').toLowerCase();
+        if ((idLow.indexOf('n2o') !== -1 || idLow.indexOf('nos') !== -1) && typeof data.ringValue === 'number') {
+          scope.$evalAsync(function () {
+            scope.luaMeta.auxiliary.nosLevel = data.ringValue;
+          });
+        }
       });
 
       scope.$on('NexTMinimaL_Assists', function (event, assists) {

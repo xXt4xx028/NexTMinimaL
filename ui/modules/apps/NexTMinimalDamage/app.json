@@ -1,0 +1,15 @@
+{
+  "name": "NexTMinimaL Damage",
+  "author": "VortexGen",
+  "version": "1.0",
+  "description": "Engine block damage diagnostics in NexTMinimaL style.",
+  "directive": "nextMinimalDamage",
+  "domElement": "<next-minimal-damage></next-minimal-damage>",
+  "category": "Dashboard",
+  "isAuxiliary": false,
+  "interactive": "yes",
+  "types": [ "ui.apps.categories.vehicle_info" ],
+  "css": "app.css",
+  "size": [220, 260],
+  "minSize": [180, 220]
+}

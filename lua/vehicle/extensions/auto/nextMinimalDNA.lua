@@ -698,20 +698,79 @@ local function collectAuxiliaryData()
       end
     end
   end
+  local n2oFoundStorage = nil
   if energyStorage and energyStorage.getStorage then
     for _, sname in ipairs({"n2o", "nos", "nitrous", "nitrousOxide", "n2oTank", "nosTank"}) do
       local tank = energyStorage.getStorage(sname)
-      if tank then info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
+      if tank then n2oFoundStorage = sname; info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
     end
   end
   if not info.hasNos and energyStorage and energyStorage.storages then
     for sname, tank in pairs(energyStorage.storages) do
-      local ln = string.lower(tostring(sname)); if ln:find("n2o") or ln:find("nitro") then info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
+      local ln = string.lower(tostring(sname)); if ln:find("n2o") or ln:find("nitro") then n2oFoundStorage = sname; info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
     end
   end
   if not info.hasNos and electrics.values.n2oActive ~= nil then info.hasNos, info.nosActive, info.nosLevel = true, (electrics.values.n2oActive == 1), 1.0 end
+  info.nosArmed = (electrics.values.nitrousOxideArm == 1)
+  info.nosManual = (electrics.values.nitrousOxideOverride == 1)
+  
   if v and v.data and v.data.thrusters then for _, t in pairs(v.data.thrusters) do if string.lower(t.name or ""):find("jato") then info.hasJato = true; break end end end
   if info.hasJato then info.jatoActive = (electrics.values.jatoActive == 1) end
+
+  info.n2oPowerKw = 0
+  info.n2oAddedPower = 0
+  info.n2oCutInRPM = 0
+  info.n2oCutInRange = 50
+  
+  local function getN2OFromJBeam()
+    if v and v.data and v.data.powertrain then
+      for key, entry in pairs(v.data.powertrain) do
+        if type(entry) == "table" then
+          local name = string.lower(entry.name or entry.type or key)
+          if name:find("nitrous") or name:find("n2o") or name:find("nos") then
+            return entry
+          end
+        end
+      end
+    end
+    return nil
+  end
+  
+  local n2oJBeam = getN2OFromJBeam()
+  if n2oJBeam then
+    info.hasNos = true
+    info.n2oAddedPower = (tonumber(n2oJBeam.addedPower) or 0) * 1000
+    info.n2oCutInRPM = tonumber(n2oJBeam.cutInRPM) or 3500
+    info.n2oCutInRange = n2oJBeam.cutInRange or 50
+    info.n2oPowerKw = info.n2oAddedPower / 1000
+  end
+  
+  if powertrain and powertrain.getDevices then
+    for _, dev in pairs(powertrain.getDevices()) do
+      if dev.addedPower and not info.hasNos then
+        info.hasNos = true
+        info.n2oAddedPower = dev.addedPower
+        info.n2oPowerKw = dev.addedPower / 1000
+      end
+      if dev.nitrousOxideInjection and dev.nitrousOxideInjection.isExisting then
+        info.hasNos = true
+        if dev.nitrousOxideInjection.getN2OData then
+          local n2oData = dev.nitrousOxideInjection.getN2OData()
+          if n2oData then
+            info.n2oAddedPower = n2oData.addedPower or info.n2oAddedPower
+            info.n2oCutInRPM = n2oData.cutInRPM or info.n2oCutInRPM
+            info.n2oCutInRange = n2oData.cutInRange or info.n2oCutInRange
+            info.n2oPowerKw = info.n2oAddedPower / 1000
+          end
+        end
+        if dev.tankRatio then info.nosLevel = dev.tankRatio end
+      end
+    end
+  end
+  if info.nosLevel == 0 and electrics.values.nosLevel then info.nosLevel = electrics.values.nosLevel end
+  if info.nosLevel == 0 and electrics.values.nos and type(electrics.values.nos) == "number" then info.nosLevel = electrics.values.nos end
+  if info.nosLevel == 0 and electrics.values.nitrousOxide and type(electrics.values.nitrousOxide) == "number" then info.nosLevel = electrics.values.nitrousOxide end
+
   return info
 end
 
@@ -792,7 +851,7 @@ local function pushUpdates(force)
   local dmSig = buildDeviceModesSignature(deviceModes)
   if force or dtSig ~= lastDrivetrainSignature or auxSig ~= lastAuxiliarySignature or dmSig ~= lastDeviceModesSignature then
     lastDrivetrainSignature, lastAuxiliarySignature, lastDeviceModesSignature = dtSig, auxSig, dmSig
-    guihooks.trigger("NexTMinimaL_SystemsUpdate", { drivetrain = dt, auxiliary = aux, deviceModes = deviceModes })
+    guihooks.trigger("NexTMinimaL_SystemsUpdate", { drivetrain = dt, auxiliary = aux, deviceModes = deviceModes, nosLevel = aux.nosLevel })
   end
   -- Wheel updates (always push if changed enough)
   local wd = collectWheelData()
