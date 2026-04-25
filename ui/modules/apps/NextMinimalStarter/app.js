@@ -278,7 +278,7 @@ var nxtStarterDirective = function ($timeout) {
           buttons.push({ id: 'fog_fusion', label: label, luaFn: 'toggleAuxFusion()', stateKey: 'fogActive' });
         }
 
-        if (caps.hasNosecone)  buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()',  stateKey: 'noseconelight' });
+        if (caps.hasNosecone)  buttons.push({ id: 'nosecone', label: 'NOSECONE', luaFn: 'toggleNosecone()',  stateKey: 'noseconeOn' });
         if (caps.hasSpotlight) buttons.push({ id: 'spot',     label: 'SPOT',     luaFn: 'toggleSpotlight()', stateKey: 'spotlightOn' });
 
         scope.auxLightButtons = buttons;

@@ -399,6 +399,171 @@ local dtSnapshot = {}
 local auxSnapshot = {}
 local restorePending = false
 local restoreFrames = -1
+local n2oDeviceForCurveFetch = nil
+local curveFetchState = 'idle'
+local originalCutInRPM = 0
+local n2oLogCounter = 0
+
+-- Empirical N2O boost sampling
+local empSamples = {}        -- {rpm = {deltaT, ...}}
+local empSmoothedDelta = {}  -- {rpm = smoothedDeltaT}
+local empSampleCount = 0
+local empCurveStable = false
+local empCurveComputed = false
+local empAddedPower = 0
+local empCurveCache = {}
+local baseTorqueCurve = {}    -- interpolated base curve for delta calculation
+
+local RPM_TO_AV = 0.104719755
+
+local function interpolateBaseTorque(rpm)
+  if not next(baseTorqueCurve) then return 0 end
+  local keys = {}
+  for k in pairs(baseTorqueCurve) do table.insert(keys, k) end
+  table.sort(keys)
+  if rpm >= keys[#keys] then return baseTorqueCurve[keys[#keys]] or 0 end
+  if rpm <= keys[1] then return baseTorqueCurve[keys[1]] or 0 end
+  for i = 1, #keys - 1 do
+    if rpm >= keys[i] and rpm <= keys[i + 1] then
+      local t = (rpm - keys[i]) / (keys[i + 1] - keys[i])
+      return baseTorqueCurve[keys[i]] * (1 - t) + baseTorqueCurve[keys[i + 1]] * t
+    end
+  end
+  return 0
+end
+
+local function updateEmpiricalSampling(rpm, torque, n2oActive, engineLoad, cutInRPM)
+  if empCurveStable or empCurveComputed then return end
+  if not n2oActive or engineLoad < 0.92 or rpm < cutInRPM then return end
+  
+  local baseTq = interpolateBaseTorque(rpm)
+  if baseTq <= 0 then return end
+  
+  local deltaT = torque - baseTq
+  if deltaT <= 0 then return end
+  
+  local rpmSlot = math.floor(rpm / 200) * 200
+  if rpmSlot < 200 then rpmSlot = 200 end
+  
+  if not empSamples[rpmSlot] then empSamples[rpmSlot] = {} end
+  table.insert(empSamples[rpmSlot], deltaT)
+  if #empSamples[rpmSlot] > 50 then table.remove(empSamples[rpmSlot], 1) end
+  
+  empSampleCount = empSampleCount + 1
+end
+
+local function smoothEmpiricalCurve()
+  for rpm, samples in pairs(empSamples) do
+    if #samples >= 3 then
+      local sum = 0
+      for _, v in ipairs(samples) do sum = sum + v end
+      local avg = sum / #samples
+      empSmoothedDelta[rpm] = empSmoothedDelta[rpm] or 0
+      empSmoothedDelta[rpm] = empSmoothedDelta[rpm] * 0.9 + avg * 0.1
+    end
+  end
+end
+
+local function checkEmpiricalStability()
+  if empCurveStable or empCurveComputed then return false end
+  local totalSamples = 0
+  for _, samples in pairs(empSamples) do totalSamples = totalSamples + #samples end
+  if totalSamples < 30 then return false end
+  
+  local variances = {}
+  for rpm, samples in pairs(empSamples) do
+    if #samples >= 10 then
+      local sum = 0
+      for i = math.max(1, #samples - 9), #samples do sum = sum + samples[i] end
+      local avg = sum / math.min(10, #samples)
+      local var = 0
+      for i = math.max(1, #samples - 9), #samples do
+        local d = samples[i] - avg
+        var = var + d * d
+      end
+      var = var / math.min(10, #samples)
+      table.insert(variances, {rpm = rpm, var = var, avg = avg})
+    end
+  end
+  
+  if #variances < 3 then return false end
+  
+  for _, v in ipairs(variances) do
+    if v.avg > 0 and (v.var / (v.avg * v.avg)) > 0.0005 then return false end
+  end
+  
+  return true
+end
+
+local function computeEmpiricalAddedPower(cutInRPM)
+  local totalWeightedDelta = 0
+  local totalWeight = 0
+  for rpm, delta in pairs(empSmoothedDelta) do
+    if delta > 5 then
+      local w = delta / (rpm * RPM_TO_AV)
+      totalWeightedDelta = totalWeightedDelta + delta * w
+      totalWeight = totalWeight + w
+    end
+  end
+  if totalWeight > 0 then
+    empAddedPower = (totalWeightedDelta / totalWeight) * (cutInRPM * RPM_TO_AV)
+  else
+    empAddedPower = 150000
+  end
+end
+
+local function buildEmpiricalSubCurve(cutInRPM, cutInRange, maxRpm)
+  local curve = {}
+  if empAddedPower <= 0 then return curve end
+  for rpm = 2000, cutInRPM - 1 do
+    curve[rpm] = empAddedPower / (rpm * RPM_TO_AV)
+  end
+  return curve
+end
+
+local function getEmpiricalCurveForDNA()
+  if next(empCurveCache) then return empCurveCache end
+  if not (empCurveStable or empCurveComputed) then return {} end
+  empCurveComputed = true
+  local cutIn = n2oDeviceForCurveFetch and n2oDeviceForCurveFetch.cutInRPM or 3500
+  empCurveCache = buildEmpiricalSubCurve(cutIn, 50, 7000)
+  return empCurveCache
+end
+
+local function resetEmpiricalState()
+  empSamples = {}
+  empSmoothedDelta = {}
+  empSampleCount = 0
+  empCurveStable = false
+  empCurveComputed = false
+  empAddedPower = 0
+  empCurveCache = {}
+  baseTorqueCurve = {}
+end
+
+local function isEmpiricalCurveReady()
+  if empCurveStable or empCurveComputed then return true end
+  if checkEmpiricalStability() then
+    computeEmpiricalAddedPower(n2oDeviceForCurveFetch and n2oDeviceForCurveFetch.cutInRPM or 3500)
+    empCurveStable = true
+    return true
+  end
+  return false
+end
+
+local function getEmpiricalCurve(cutInRPM, cutInRange, maxRpm)
+  if not empCurveComputed and empCurveStable then
+    empCurveComputed = true
+    return buildEmpiricalSubCurve(cutInRPM, cutInRange, maxRpm)
+  end
+  return {}
+end
+
+local function n2oLog(event, data)
+  n2oLogCounter = n2oLogCounter + 1
+  if n2oLogCounter % 30 ~= 0 then return end
+  log("I", "nextMinimalDNA", "[NXT_N2O] " .. tostring(event) .. " | " .. tostring(data))
+end
 
 local function updateDrivetrainSnapshot()
   if restorePending or not lastDNA then return end
@@ -699,15 +864,25 @@ local function collectAuxiliaryData()
     end
   end
   local n2oFoundStorage = nil
-  if energyStorage and energyStorage.getStorage then
-    for _, sname in ipairs({"n2o", "nos", "nitrous", "nitrousOxide", "n2oTank", "nosTank"}) do
-      local tank = energyStorage.getStorage(sname)
-      if tank then n2oFoundStorage = sname; info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
-    end
+  local tank = energyStorage and energyStorage.getStorageSafe and energyStorage.getStorageSafe("mainBottle")
+  if tank and type(tank.remainingRatio) == "number" then
+    n2oFoundStorage = "mainBottle"
+    info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1)
+    info.nosLevel = tank.remainingRatio
+  else
+    info.nosLevel = 1.0
   end
-  if not info.hasNos and energyStorage and energyStorage.storages then
-    for sname, tank in pairs(energyStorage.storages) do
-      local ln = string.lower(tostring(sname)); if ln:find("n2o") or ln:find("nitro") then n2oFoundStorage = sname; info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
+  if not info.hasNos then
+    if energyStorage and energyStorage.getStorage then
+      for _, sname in ipairs({"n2o", "nos", "nitrous", "nitrousOxide", "n2oTank", "nosTank"}) do
+        local tank = energyStorage.getStorage(sname)
+        if tank then n2oFoundStorage = sname; info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
+      end
+    end
+    if not info.hasNos and energyStorage and energyStorage.storages then
+      for sname, tank in pairs(energyStorage.storages) do
+        local ln = string.lower(tostring(sname)); if ln:find("n2o") or ln:find("nitro") then n2oFoundStorage = sname; info.hasNos, info.nosActive = true, (electrics.values.n2oActive == 1); info.nosLevel = (type(tank.amount) == "number" and type(tank.capacity) == "number" and tank.capacity > 0) and (tank.amount / tank.capacity) or 1.0; break end
+      end
     end
   end
   if not info.hasNos and electrics.values.n2oActive ~= nil then info.hasNos, info.nosActive, info.nosLevel = true, (electrics.values.n2oActive == 1), 1.0 end
@@ -763,15 +938,89 @@ local function collectAuxiliaryData()
             info.n2oPowerKw = info.n2oAddedPower / 1000
           end
         end
-        if dev.tankRatio then info.nosLevel = dev.tankRatio end
+        if dev.tankRatio and type(dev.tankRatio) == "number" then info.nosLevel = dev.tankRatio end
       end
     end
   end
-  if info.nosLevel == 0 and electrics.values.nosLevel then info.nosLevel = electrics.values.nosLevel end
-  if info.nosLevel == 0 and electrics.values.nos and type(electrics.values.nos) == "number" then info.nosLevel = electrics.values.nos end
-  if info.nosLevel == 0 and electrics.values.nitrousOxide and type(electrics.values.nitrousOxide) == "number" then info.nosLevel = electrics.values.nitrousOxide end
+  if info.nosLevel == 0 and type(electrics.values.nosLevel) == "number" then info.nosLevel = electrics.values.nosLevel end
+  if info.nosLevel == 0 and type(electrics.values.nos) == "number" then info.nosLevel = electrics.values.nos end
+  if info.nosLevel == 0 and type(electrics.values.nitrousOxide) == "number" then info.nosLevel = electrics.values.nitrousOxide end
 
   return info
+end
+
+local function findN2ODevice()
+  if not powertrain or not powertrain.getDevices then return nil end
+  for _, dev in pairs(powertrain.getDevices()) do
+    if dev.nitrousOxideInjection and dev.nitrousOxideInjection.isExisting then
+      return dev
+    end
+  end
+  return nil
+end
+
+local function triggerTorqueCurveFetch()
+  if controller and controller.mainController and controller.mainController.sendTorqueData then
+    controller.mainController.sendTorqueData()
+  end
+end
+
+local function fetchN2OCurves()
+  local dev = findN2ODevice()
+  n2oLog("fetchN2OCurves", "device=" .. tostring(dev and dev.name or "nil"))
+  if not dev then
+    n2oLog("fetchN2OCurves", "no N2O device found, skipping")
+    return
+  end
+  n2oDeviceForCurveFetch = dev
+  originalCutInRPM = dev.cutInRPM or 3500
+  curveFetchState = 'extended'
+  dev.cutInRPM = 2000
+  n2oLog("cutInRPM set", "to=2000 original=" .. tostring(originalCutInRPM))
+  triggerTorqueCurveFetch()
+end
+
+local function finalizeN2OCurveFetch()
+  if curveFetchState ~= 'finalized' then return end
+  if n2oDeviceForCurveFetch and originalCutInRPM > 0 then
+    n2oDeviceForCurveFetch.cutInRPM = originalCutInRPM
+  end
+  curveFetchState = 'idle'
+  n2oDeviceForCurveFetch = nil
+  originalCutInRPM = 0
+  triggerTorqueCurveFetch()
+end
+
+-- N2O curve fetch state machine: runs after vehicle load
+-- States: idle -> extended -> finalized -> idle
+local function advanceCurveFetchState()
+  if curveFetchState == 'idle' then return end
+  if curveFetchState == 'extended' then
+    curveFetchState = 'finalized'
+    -- 100ms delay then restore and re-fetch
+    local startTime = os.time and (os.time() * 1000) or 0
+    -- Use a simple frame counter approach for the delay
+    restoreFrames = 10
+    return
+  end
+end
+
+local function handleTorqueCurveResponse()
+  if curveFetchState == 'extended' then
+    -- First TorqueCurveChanged received with cutInRPM=2000
+    curveFetchState = 'restoring'
+    -- Immediately restore to real cutInRPM
+    if n2oDeviceForCurveFetch and originalCutInRPM > 0 then
+      n2oDeviceForCurveFetch.cutInRPM = originalCutInRPM
+    end
+    curveFetchState = 'real'
+    triggerTorqueCurveFetch()
+  elseif curveFetchState == 'real' then
+    -- Second TorqueCurveChanged received with real cutInRPM
+    curveFetchState = 'idle'
+    n2oDeviceForCurveFetch = nil
+    originalCutInRPM = 0
+  end
 end
 
 local function collectWheelData()
@@ -860,31 +1109,6 @@ local function pushUpdates(force)
   
   -- PERSISTENCE: Save state for next reset
   updateDrivetrainSnapshot()
-end
-
-function M.toggleAuxFusion()
-  local newState = 1
-  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
-    newState = 0
-  end
-
-  -- SURGICAL TOGGLE: Only toggle channels that actually exist in the vehicle's definition
-  local caps = detectAuxLightCaps()
-  if caps.hasFog then
-    if electrics.values.fog ~= nil then electrics.values.fog = newState end
-    if electrics.values.fog_front ~= nil then electrics.values.fog_front = newState end
-    if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
-  end
-
-  if caps.hasLightbar then
-    if electrics.values.lightbar ~= nil then electrics.values.lightbar = newState end
-    if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
-  end
-
-  -- Fallback for generic extras if they were intended as aux
-  if not caps.hasFog and not caps.hasLightbar then
-    if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
-  end
 end
 
 local function detectAuxLightCaps()
@@ -986,6 +1210,41 @@ local function detectAuxLightCaps()
   return caps
 end
 
+function M.toggleAuxFusion()
+  local newState = 1
+  if (electrics.values.fog == 1) or (electrics.values.fog_front == 1) or (electrics.values.lightbar == 1) then
+    newState = 0
+  end
+  local caps = detectAuxLightCaps()
+  if caps.hasFog then
+    if electrics.values.fog ~= nil then electrics.values.fog = newState end
+    if electrics.values.fog_front ~= nil then electrics.values.fog_front = newState end
+    if electrics.set_fog_lights then electrics.set_fog_lights(newState) end
+  end
+  if caps.hasLightbar then
+    if electrics.values.lightbar ~= nil then electrics.values.lightbar = newState end
+    if electrics.set_lightbar_signal then electrics.set_lightbar_signal(newState) end
+  end
+  if not caps.hasFog and not caps.hasLightbar then
+    if electrics.values.extra1 ~= nil then electrics.values.extra1 = newState end
+  end
+end
+
+function M.toggleNosecone()
+  local vals = electrics.values
+  if vals.noseconelight ~= nil then
+    vals.noseconelight = (vals.noseconelight == 1) and 0 or 1
+  end
+end
+
+function M.toggleSpotlight()
+  local vals = electrics.values
+  local isOn = (vals.spotlight_L == 1 or vals.spotlight_R == 1)
+  local newState = isOn and 0 or 1
+  if vals.spotlight_L ~= nil then vals.spotlight_L = newState end
+  if vals.spotlight_R ~= nil then vals.spotlight_R = newState end
+end
+
 function M.setIgnition(level)
   level = math.floor(math.max(0, math.min(3, tonumber(level) or 0)))
   local vc = controller and controller.getController and controller.getController("vehicleController")
@@ -1025,7 +1284,7 @@ end
 function M.toggleJato() if electrics.values.jatoActive ~= nil then electrics.values.jatoActive = (electrics.values.jatoActive == 1) and 0 or 1 end end
 
 local function buildDNA()
-  local dna = { ready = false, vehicle = { name = "", brand = "", config = "" }, engine = collectEngineData(), transmission = { rawType = "unknown", class = "unknown", isManual = false, isAutomatic = false, isDCT = false, isCVT = false, isSequential = false, usesFloat = false, availableModes = {}, selectorModes = {}, currentMode = "", selectorSource = "none", maxGearIndex = 1, minGearIndex = -1, gearCount = 1 }, induction = scanForcedInduction(), drivetrain = collectDrivetrainData(), auxiliary = collectAuxiliaryData(), wheels = collectWheelData(), assists = collectAssistState() }
+  local dna = { ready = false, vehicle = { name = "", brand = "", config = "" }, engine = collectEngineData(), transmission = { rawType = "unknown", class = "unknown", isManual = false, isAutomatic = false, isDCT = false, isCVT = false, isSequential = false, usesFloat = false, availableModes = {}, selectorModes = {}, currentMode = "", selectorSource = "none", maxGearIndex = 1, minGearIndex = -1, gearCount = 1 }, induction = scanForcedInduction(), drivetrain = collectDrivetrainData(), auxiliary = collectAuxiliaryData(), wheels = collectWheelData(), assists = collectAssistState(), n2oEmpiricalCurve = {} }
   if v and v.data and v.data.information then dna.vehicle.name, dna.vehicle.brand, dna.vehicle.config = v.data.information.name or "", v.data.information.brand or "", v.data.information.configuration or "" end
   local gearbox = powertrain and powertrain.getDevice and powertrain.getDevice("gearbox")
   local fallbackTx = getTransmissionFallbackData(); local rawTxType, cls = resolveTransmissionType(gearbox, fallbackTx)
@@ -1039,11 +1298,33 @@ local function buildDNA()
   dna.toggleableDevices = scanToggleableDevices()
   dna.auxLightCaps = detectAuxLightCaps()
   dna.auxFogDriven = auxFogDriven
+
+  -- Populate baseTorqueCurve from engine torqueData curves
+  local eng = powertrain and powertrain.getDevice and powertrain.getDevice("mainEngine")
+  if eng and eng.torqueData and eng.torqueData.curves then
+    for _, curve in ipairs(eng.torqueData.curves) do
+      local name = (curve.name or ""):lower()
+      if not name:find("n2o") then
+        local torqueArr = curve.torque or {}
+        local maxRPM = eng.torqueData.maxRPM or 7000
+        for i, tq in ipairs(torqueArr) do
+          local rpm = math.floor((i - 1) * (maxRPM / #torqueArr))
+          baseTorqueCurve[rpm] = tq
+        end
+        break
+      end
+    end
+  end
+
+  dna.n2oEmpiricalCurve = getEmpiricalCurveForDNA()
   dna.ready = true
   return dna
 end
 
 local initFrames = 0
+local n2oFetchDone = false
+local n2oFetchDelayFrames = 180  -- ~3 seconds at 60fps
+
 local function getVehicleDNA()
   local dna = buildDNA()
   lastDNA = dna
@@ -1052,15 +1333,43 @@ local function getVehicleDNA()
   return dna
 end
 
-M.onExtensionLoaded = function() initFrames = 10; auxFogDriven = nil; auxProbe = { fog = -1, highbeam = -1, aux = -1 }; dtSnapshot = {}; restorePending = false end
+M.onExtensionLoaded = function() initFrames = 10; auxFogDriven = nil; auxProbe = { fog = -1, highbeam = -1, aux = -1 }; dtSnapshot = {}; restorePending = false; restoreFrames = -1; curveFetchState = 'idle'; n2oFetchDone = false; n2oFetchDelayFrames = 180; resetEmpiricalState() end
 M.onReset = function() initFrames = 5; restorePending = true; restoreFrames = 15 end
 M.onVehicleResetted = function() initFrames = 5; restorePending = true; restoreFrames = 15 end
 M.onPowertrainReset = function() initFrames = 5 end
 
+-- Called from JS when TorqueCurveChanged is received
+M.onN2OCurveReceived = function(isExtended)
+  n2oLog("onN2OCurveReceived", "isExtended=" .. tostring(isExtended) .. " state=" .. tostring(curveFetchState))
+  if curveFetchState == 'extended' and isExtended then
+    if n2oDeviceForCurveFetch and originalCutInRPM > 0 then
+      n2oDeviceForCurveFetch.cutInRPM = originalCutInRPM
+      n2oLog("cutInRPM restored", "original=" .. tostring(originalCutInRPM))
+    end
+    curveFetchState = 'real'
+    triggerTorqueCurveFetch()
+  elseif curveFetchState == 'real' and not isExtended then
+    n2oLog("sequence complete", "state=idle")
+    curveFetchState = 'idle'
+    n2oDeviceForCurveFetch = nil
+    originalCutInRPM = 0
+  end
+end
+
 M.updateGFX = function(dt)
+  print('NXT_N2O updateGFX | pending=' .. tostring(n2oFetchDone == false) .. ' frames=' .. tostring(n2oFetchDelayFrames))
   if initFrames > 0 then
     initFrames = initFrames - 1
     if initFrames == 0 then getVehicleDNA() end
+  end
+  
+  -- Delayed N2O fetch after powertrain initialization (~3 seconds after DNA ready)
+  if not n2oFetchDone then
+    n2oFetchDelayFrames = n2oFetchDelayFrames - 1
+    if n2oFetchDelayFrames <= 0 then
+      n2oFetchDone = true
+      fetchN2OCurves()
+    end
   end
   
   if restorePending then
@@ -1072,6 +1381,33 @@ M.updateGFX = function(dt)
   end
   
   pushUpdates(false)
+  
+  -- Empirical N2O sampling: collect torque deltas when N2O active
+  if not empCurveStable and not empCurveComputed then
+    local vals = electrics and electrics.values or {}
+    if vals.nitrousOxideActive == 1 and (vals.engineLoad or 0) >= 0.92 then
+      local eng = powertrain and powertrain.getDevice and powertrain.getDevice("mainEngine")
+      if eng then
+        local rpm = eng.outputAV1 and (eng.outputAV1 * 9.549296596425384) or (vals.rpm or 0)
+        local torque = vals.torque or 0
+        local cutIn = n2oDeviceForCurveFetch and n2oDeviceForCurveFetch.cutInRPM or 3500
+        if rpm >= cutIn then
+          updateEmpiricalSampling(rpm, torque, true, vals.engineLoad, cutIn)
+        end
+      end
+    end
+    
+    -- Smooth every 30 frames
+    local frame = math.floor(os and os.time and os.time() or 0) or 0
+    if frame % 30 == 0 then
+      smoothEmpiricalCurve()
+    end
+    
+    -- Check stability every 60 frames
+    if frame % 60 == 0 and isEmpiricalCurveReady() then
+      n2oLog("empirical curve stable", "addedPower=" .. tostring(empAddedPower))
+    end
+  end
 end
 
 M.getVehicleDNA = getVehicleDNA

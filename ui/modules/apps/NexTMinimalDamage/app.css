@@ -1,11 +1,11 @@
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('/ui/modules/apps/NexTMinimalDamage/JetBrainsMono-Regular.ttf') format('truetype');
+  src: url('/ui/modules/apps/NextMinimalTacho/JetBrainsMono-Regular.ttf') format('truetype');
   font-weight: 400;
 }
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('/ui/modules/apps/NexTMinimalDamage/JetBrainsMono-Medium.ttf') format('truetype');
+  src: url('/ui/modules/apps/NextMinimalTacho/JetBrainsMono-Medium.ttf') format('truetype');
   font-weight: 500;
 }
 

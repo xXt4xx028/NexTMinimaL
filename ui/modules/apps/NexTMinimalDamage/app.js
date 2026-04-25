@@ -177,30 +177,30 @@ angular.module('beamng.apps').directive('nextMinimalDamage', ['$timeout', '$wind
           scope.d.overrev = makeTile(vLabel, vLevel);
           if (vLevel > maxLevel) maxLevel = vLevel;
 
-          var deductions = 0;
-          if (eng.engineDisabled)                          deductions += 100;
-          if (eng.blockMelted)                             deductions += 100;
-          if (eng.engineLockedUp)                           deductions += 100;
-          if (eng.engineHydrolocked)                        deductions += 80;
-          if (eng.catastrophicOverrevDamage)               deductions += 60;
-          if (eng.catastrophicOverTorqueDamage)            deductions += 60;
-          if (eng.starvedOfOil)                            deductions += 55;
-          if (eng.rodBearingsDamaged)                       deductions += 40;
-          if (eng.pistonRingsDamaged)                       deductions += 35;
-          if (eng.headGasketDamaged)                       deductions += 30;
-          if (eng.engineReducedTorque)                       deductions += 20;
-          if (eng.overRevDanger)                            deductions += 15;
-          if (eng.overTorqueDanger)                         deductions += 15;
-          if (eng.mildOverrevDamage)                        deductions += 12;
-          if (eng.mildOverTorqueDamage)                     deductions += 12;
-          if (eng.oilpanLeak)                               deductions += 10;
-          if (eng.impactDamage)                             deductions += 10;
-          if (eng.radiatorLeak)                             deductions += 8;
-          if (eng.inductionSystemDamaged)                   deductions += 8;
-          if (eng.turbochargerHot)                          deductions += 5;
-          if (eng.coolantOverheating)                       deductions += 5;
-          if (eng.oilOverheating)                           deductions += 5;
-          scope.d.integrity = Math.max(0, 100 - deductions);
+          var integrity = 1.0;
+          if (eng.engineDisabled || eng.blockMelted || eng.engineLockedUp || eng.engineHydrolocked) {
+            integrity = 0;
+          } else {
+            if (eng.catastrophicOverrevDamage)    integrity *= 0.40;
+            if (eng.catastrophicOverTorqueDamage) integrity *= 0.40;
+            if (eng.starvedOfOil)                 integrity *= 0.45;
+            if (eng.rodBearingsDamaged)           integrity *= 0.60;
+            if (eng.pistonRingsDamaged)           integrity *= 0.65;
+            if (eng.headGasketDamaged)            integrity *= 0.70;
+            if (eng.engineReducedTorque)          integrity *= 0.80;
+            if (eng.mildOverrevDamage)            integrity *= 0.88;
+            if (eng.mildOverTorqueDamage)         integrity *= 0.88;
+            if (eng.oilpanLeak)                   integrity *= 0.90;
+            if (eng.impactDamage)                 integrity *= 0.90;
+            if (eng.radiatorLeak)                 integrity *= 0.92;
+            if (eng.inductionSystemDamaged)       integrity *= 0.92;
+            if (eng.overRevDanger)                integrity *= 0.93;
+            if (eng.overTorqueDanger)             integrity *= 0.93;
+            if (eng.turbochargerHot)              integrity *= 0.97;
+            if (eng.coolantOverheating)           integrity *= 0.97;
+            if (eng.oilOverheating)              integrity *= 0.97;
+          }
+          scope.d.integrity = Math.round(integrity * 100);
 
           if      (scope.d.integrity >= 85) { scope.d.integrityClass = 'nxtd-int-ok';   scope.d.integrityFillClass = 'nxtd-fill-ok';   }
           else if (scope.d.integrity >= 50) { scope.d.integrityClass = 'nxtd-int-warn'; scope.d.integrityFillClass = 'nxtd-fill-warn'; }

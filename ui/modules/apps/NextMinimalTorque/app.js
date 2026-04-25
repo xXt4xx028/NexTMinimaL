@@ -6,7 +6,7 @@
 var NXT_TQ_CSS = [
   ':root{--color-success:#3ddc84;--color-warning:#ffaa00;--color-error:#ef4444;--color-text-muted:rgba(255,255,255,0.4);--transition-fast:all 0.2s ease}',
   '.nxt-tq-root{width:100%;height:100%;pointer-events:auto;user-select:none;font-family:"Consolas","Courier New",monospace;overflow:hidden}',
-  '.nxt-tq-panel{width:100%;height:100%;background:rgba(0,0,0,0.85);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 32px rgba(0,0,0,0.8)}',
+  '.nxt-tq-panel{width:100%;height:100%;background:rgba(0,0,0,0.85);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:8px;box-sizing:border-box;display:flex;flex-direction:column;gap:6px;box-shadow:0 8px 32px rgba(0,0,0,0.8);position:relative;overflow:hidden}',
 
   /* Region 1: Top Stats */
   '.nxt-tq-top{display:flex;flex-direction:column;gap:4px;flex-shrink:0}',
@@ -75,7 +75,23 @@ var NXT_TQ_CSS = [
   '.nxt-sz-ultra .nxt-tq-meta{display:none}',
   '.nxt-sz-ultra .nxt-tq-ref{padding:2px 0;gap:6px;border:none;background:transparent}',
   '.nxt-sz-ultra .nxt-tq-leg-text{display:none}',
-  '.nxt-sz-ultra .nxt-svg-labels{opacity:0.3}'
+  '.nxt-sz-ultra .nxt-svg-labels{opacity:0.3}',
+
+  /* Gear button */
+  '.nxt-tq-gear{display:inline-flex;align-items:center;cursor:pointer;color:rgba(255,255,255,0.25);margin-left:4px;vertical-align:middle;background:none;border:none;padding:0;line-height:0;transition:color 0.15s ease}',
+  '.nxt-tq-gear:hover{color:#00d4ff}',
+
+  /* Settings overlay */
+  '.nxt-tq-settings{position:absolute;inset:0;background:rgba(10,11,13,0.97);backdrop-filter:blur(12px);z-index:50;display:flex;flex-direction:column;gap:10px;padding:10px;border-radius:4px}',
+  '.nxt-tq-settings-hdr{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}',
+  '.nxt-tq-settings-ttl{font-size:8px;letter-spacing:0.25em;color:#00d4ff;font-weight:700;text-transform:uppercase}',
+  '.nxt-tq-settings-cls{cursor:pointer;font-size:7px;letter-spacing:0.15em;font-weight:700;color:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.12);padding:2px 8px;border-radius:2px;background:none;transition:all 0.15s ease}',
+  '.nxt-tq-settings-cls:hover{color:#00d4ff;border-color:rgba(0,212,255,0.5)}',
+  '.nxt-tq-settings-body{flex:1;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(255,255,255,0.07);border-radius:2px;color:rgba(255,255,255,0.15);font-size:8px;letter-spacing:0.2em}',
+  '.nxt-tq-settings-row{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:2px}',
+  '.nxt-tq-settings-lbl{font-size:7px;letter-spacing:0.2em;color:rgba(255,255,255,0.4);font-weight:700;text-transform:uppercase}',
+  '.nxt-tq-settings-toggle{font-size:7px;letter-spacing:0.12em;font-weight:700;cursor:pointer;background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.3);color:#00d4ff;padding:3px 8px;border-radius:2px;transition:all 0.15s ease;text-transform:uppercase}',
+  '.nxt-tq-settings-toggle:hover{background:rgba(0,212,255,0.15);border-color:rgba(0,212,255,0.6)}'
 ].join('');
 
 var NXT_TQ_SVG_DEFS = [
@@ -103,6 +119,8 @@ var NXT_TQ_SVG_DEFS = [
   '<polyline ng-attr-points="{{chart.tqBasePts}}" fill="none" stroke="rgba(255,170,0,0.3)" stroke-width="1.5" stroke-dasharray="4,4" vector-effect="non-scaling-stroke"/>',
   '<polyline ng-attr-points="{{chart.tqLivePts}}" fill="none" stroke="#ffaa00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>',
   '<polyline ng-attr-points="{{chart.hpLivePts}}" fill="none" stroke="#00d4ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>',
+  '<polyline ng-attr-points="{{chart.tqExtPts}}" fill="none" stroke="rgba(255,170,0,0.4)" stroke-width="1.5" stroke-dasharray="2,3" vector-effect="non-scaling-stroke" ng-show="chart.tqExtPts"/>',
+  '<polyline ng-attr-points="{{chart.hpExtPts}}" fill="none" stroke="rgba(0,212,255,0.4)" stroke-width="1.5" stroke-dasharray="2,3" vector-effect="non-scaling-stroke" ng-show="chart.hpExtPts"/>',
 
   '<line ng-attr-x1="{{chart.cursorX}}" y1="10" ng-attr-x2="{{chart.cursorX}}" y2="90" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-dasharray="3,2" vector-effect="non-scaling-stroke"/>',
   '<circle ng-attr-cx="{{chart.cursorX}}" ng-attr-cy="{{chart.dotHpY}}" r="3.5" fill="#00d4ff" stroke="rgba(0,0,0,0.8)" stroke-width="1" vector-effect="non-scaling-stroke"/>',
@@ -116,20 +134,28 @@ var NXT_TQ_TEMPLATE =
     '<div class="nxt-tq-top">' +
       '<div class="nxt-tq-hero">' +
         '<div class="nxt-tq-metric">' +
-          '<div class="nxt-tq-k">LIVE POWER</div>' +
+          '<div class="nxt-tq-k">{{cfg.curveMode === "drivetrain" ? "WHL POWER" : "LIVE POWER"}}</div>' +
           '<div class="nxt-tq-v nxt-c-hp">{{d.hp | number:0}}<span class="nxt-tq-vu">HP</span></div>' +
-          '<div class="nxt-tq-n2o-delta" ng-if="d.n2oBoostHp > 5">+{{d.n2oBoostHp | number:0}} HP</div>' +
+          '<div class="nxt-tq-n2o-delta" ng-if="d.n2oBoostHp > 5 && cfg.curveMode !== \'drivetrain\'">+{{d.n2oBoostHp | number:0}} HP</div>' +
         '</div>' +
         '<div class="nxt-tq-metric">' +
-          '<div class="nxt-tq-k">TORQUE</div>' +
+          '<div class="nxt-tq-k">{{cfg.curveMode === "drivetrain" ? "DRV TORQUE" : "LIVE TORQUE"}}</div>' +
           '<div class="nxt-tq-v nxt-c-tq">{{d.tq | number:0}}<span class="nxt-tq-vu">NM</span></div>' +
           '<div class="nxt-tq-n2o-delta" ng-if="d.n2oBoostTq > 5">+{{d.n2oBoostTq | number:0}} NM</div>' +
+        '</div>' +
+        '<div class="nxt-tq-metric">' +
+          '<div class="nxt-tq-k">POWER</div>' +
+          '<div class="nxt-tq-v nxt-c-hp">{{d.baseHpMax | number:0}}<span class="nxt-tq-vu">HP</span></div>' +
+        '</div>' +
+        '<div class="nxt-tq-metric">' +
+          '<div class="nxt-tq-k">TORQUE <button class="nxt-tq-gear" ng-click="toggleSettings()" title="Settings"><svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor"><path d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"/></svg></button></div>' +
+          '<div class="nxt-tq-v nxt-c-tq">{{d.baseTqMax | number:0}}<span class="nxt-tq-vu">NM</span></div>' +
         '</div>' +
       '</div>' +
       '<div class="nxt-tq-meta">' +
         '<div class="nxt-tq-stat"><span class="nxt-tq-sk">PK TQ</span><span class="nxt-tq-sv nxt-c-tq">{{d.peakTq | number:0}}</span></div>' +
         '<div class="nxt-tq-stat"><span class="nxt-tq-sk">PK HP</span><span class="nxt-tq-sv nxt-c-hp">{{d.peakHp | number:0}}</span></div>' +
-        '<div class="nxt-tq-stat"><span class="nxt-tq-sk">&#916; BASE</span><span class="nxt-tq-sv" ng-class="d.deltaClass">{{d.delta | number:1}}%</span></div>' +
+        '<div class="nxt-tq-stat"><span class="nxt-tq-sk">{{cfg.curveMode === "drivetrain" ? "&#916; EFF" : "&#916; BASE"}}</span><span class="nxt-tq-sv" ng-class="d.deltaClass">{{d.delta | number:1}}%</span></div>' +
         '<div class="nxt-tq-chip-wrap">' +
           '<span class="nxt-tq-chip" ng-class="d.chipClass">{{d.state}}</span>' +
           '<span class="nxt-tq-chip nxt-chip-n2o" ng-if="d.n2oActive">N2O</span>' +
@@ -145,8 +171,21 @@ var NXT_TQ_TEMPLATE =
 
     '<div class="nxt-tq-ref">' +
       '<span class="nxt-tq-leg-item" style="color:rgba(255,255,255,0.7)"><span class="nxt-tq-leg-dash"></span><span class="nxt-tq-leg-text">BASE</span></span>' +
-      '<span class="nxt-tq-leg-item nxt-c-hp"><span class="nxt-tq-leg-line"></span><span class="nxt-tq-leg-text">HP</span> <span class="nxt-tq-leg-val">{{d.baseHpMax | number:0}}</span></span>' +
-      '<span class="nxt-tq-leg-item nxt-c-tq"><span class="nxt-tq-leg-line"></span><span class="nxt-tq-leg-text">TQ</span> <span class="nxt-tq-leg-val">{{d.baseTqMax | number:0}}</span></span>' +
+      '<span class="nxt-tq-leg-item nxt-c-hp"><span class="nxt-tq-leg-line"></span><span class="nxt-tq-leg-text">HP</span></span>' +
+      '<span class="nxt-tq-leg-item nxt-c-tq"><span class="nxt-tq-leg-line"></span><span class="nxt-tq-leg-text">TQ</span></span>' +
+    '</div>' +
+
+    '<div class="nxt-tq-settings" ng-if="ui.showSettings">' +
+      '<div class="nxt-tq-settings-hdr">' +
+        '<span class="nxt-tq-settings-ttl">SETTINGS</span>' +
+        '<button class="nxt-tq-settings-cls" ng-click="toggleSettings()">CLOSE</button>' +
+      '</div>' +
+      '<div class="nxt-tq-settings-row">' +
+        '<span class="nxt-tq-settings-lbl">CURVE MODE</span>' +
+        '<button class="nxt-tq-settings-toggle" ng-click="toggleCurveMode()">' +
+          '{{cfg.curveMode === "flywheel" ? "ENGINE VS FLYWHEEL" : "ENGINE VS DRIVETRAIN"}}' +
+        '</button>' +
+      '</div>' +
     '</div>' +
 
   '</div>' +
@@ -174,7 +213,15 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
       var lastSmoothTorque = 0, lastSmoothPower = 0, ALPHA = 0.25;
 
       scope.d = { hp: 0, tq: 0, peakHp: 0, peakTq: 0, state: 'UNKNOWN', chipClass: 'nxt-chip-unk', delta: 0, deltaClass: 'nxt-delta-ok', baseHpMax: 0, baseTqMax: 0, n2oInfo: null, n2oActive: false, n2oBoostTq: 0, n2oBoostHp: 0 };
-      scope.ui = { isCompact: false, isUltra: false };
+      scope.ui = { isCompact: false, isUltra: false, showSettings: false };
+      scope.toggleSettings = function() { scope.ui.showSettings = !scope.ui.showSettings; };
+
+      var NXT_CURVE_MODE_KEY = 'nxt_tq_curve_mode';
+      scope.cfg = { curveMode: localStorage.getItem(NXT_CURVE_MODE_KEY) || 'flywheel' };
+      scope.toggleCurveMode = function() {
+        scope.cfg.curveMode = scope.cfg.curveMode === 'flywheel' ? 'drivetrain' : 'flywheel';
+        localStorage.setItem(NXT_CURVE_MODE_KEY, scope.cfg.curveMode);
+      };
 
       var lastDamage = null, maxDamagePriority = 0;
 
@@ -199,7 +246,7 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
         return 1.0;
       }
 
-      scope.chart = { hpBasePts: '', tqBasePts: '', hpLivePts: '', tqLivePts: '', cursorX: CX0, dotHpY: CY0 + CH, dotTqY: CY0 + CH, yTop: '—', yHigh: '—', yLow: '—', vg1: CX0 + CW * 0.333, vg2: CX0 + CW * 0.666, xL1: '', xL1x: 0, xL2: '', xL2x: 0, xLmax: '', xLmaxX: 0 };
+      scope.chart = { hpBasePts: '', tqBasePts: '', hpLivePts: '', tqLivePts: '', hpExtPts: '', tqExtPts: '', cursorX: CX0, dotHpY: CY0 + CH, dotTqY: CY0 + CH, yTop: '—', yHigh: '—', yLow: '—', vg1: CX0 + CW * 0.333, vg2: CX0 + CW * 0.666, xL1: '', xL1x: 0, xL2: '', xL2x: 0, xLmax: '', xLmaxX: 0 };
       scope.$on('DamageData', function(ev, data) { lastDamage = data; });
 
       function valueToY(v) {
@@ -423,16 +470,20 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
         if (s === 'idle') return 0;
 
         if (s === 'active') {
-          // Boost visible only from the RPM where the user actually activated N2O
-          return rpm >= n2oMorph.triggerRpm ? 1 : 0;
-        }
+// Boost visible from 2000 upward when empirical curve available (handles ramp below cutIn)
+        // Otherwise fall back to cutInRPM
+        n2oDebugHasExt();
+        var minRpm = hasExtendedCurve ? 2000 : n2oData.cutInRPM;
+        return rpm >= minRpm ? 1 : 0;
+      }
 
         var dt = (performance.now() - n2oMorph.triggerTime) / 1000;
 
         if (s === 'expanding') {
           if (dt >= n2oMorph.expandDuration) {
             n2oMorph.state = 'active';
-            return rpm >= n2oMorph.triggerRpm ? 1 : 0;
+            var minRpm = hasExtendedCurve ? 2000 : n2oData.cutInRPM;
+            return rpm >= minRpm ? 1 : 0;
           }
           if (rpm < n2oMorph.triggerRpm) return 0;
           var reach = dt * n2oMorph.spreadSpeed;
@@ -470,22 +521,54 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
       // Formula per RPM: v = (baseEnvelope + localBlend * boost) * effectiveScale
       //   effectiveScale captures throttle/turbo spool feel — the whole curve rises and falls.
       //   localBlend is the ripple wave — N2O boost fades in from activationRPM outward.
-      function buildLivePathFromArray(isHp, effectiveScale) {
+      // If hasExtendedCurve and rpm < cutInRPM: show extended curve at 0.4 opacity (dashed appearance handled outside)
+      function buildLivePathFromArray(isHp, effectiveScale, useExtended) {
         if (!renderTqBase || renderTqBase.length === 0) {
           return buildPathFromArray(isHp ? hpCurve : tqCurve, effectiveScale);
         }
         var pts = [], step = Math.max(1, Math.floor(maxRpm / 60));
         for (var rpm = 0; rpm <= maxRpm; rpm += step) {
           var baseV  = isHp ? getEnvelopeHpAt(rpm) : getEnvelopeTqAt(rpm);
-          var boostV = isHp ? getBoostHpAt(rpm) : getBoostTqAt(rpm);
-          var blend  = getLocalBlend(rpm);
+          var boostV, blend;
+          if (useExtended && rpm < n2oData.cutInRPM && extendedBoostTq.length > 0) {
+            boostV = isHp ? extendedBoostHp[rpm] : extendedBoostTq[rpm];
+            blend  = 1.0;
+          } else {
+            boostV = isHp ? getBoostHpAt(rpm) : getBoostTqAt(rpm);
+            blend  = getLocalBlend(rpm);
+          }
           var v = (baseV + blend * boostV) * effectiveScale;
           pts.push((CX0 + (rpm / maxRpm) * CW).toFixed(1) + ',' + valueToY(v).toFixed(1));
         }
-        var baseVL  = isHp ? getEnvelopeHpAt(maxRpm) : getEnvelopeTqAt(maxRpm);
-        var boostVL = isHp ? getBoostHpAt(maxRpm) : getBoostTqAt(maxRpm);
-        var blendL  = getLocalBlend(maxRpm);
+        var baseVL, boostVL, blendL;
+        if (useExtended && maxRpm < n2oData.cutInRPM && extendedBoostTq.length > 0) {
+          baseVL  = isHp ? getEnvelopeHpAt(maxRpm) : getEnvelopeTqAt(maxRpm);
+          boostVL = isHp ? extendedBoostHp[maxRpm] : extendedBoostTq[maxRpm];
+          blendL  = 1.0;
+        } else {
+          baseVL  = isHp ? getEnvelopeHpAt(maxRpm) : getEnvelopeTqAt(maxRpm);
+          boostVL = isHp ? getBoostHpAt(maxRpm) : getBoostTqAt(maxRpm);
+          blendL  = getLocalBlend(maxRpm);
+        }
         pts.push((CX0 + CW).toFixed(1) + ',' + valueToY((baseVL + blendL * boostVL) * effectiveScale).toFixed(1));
+        return pts.join(' ');
+      }
+
+      // Extended curve rendered at low opacity as estimated region below cutInRPM
+      function buildExtendedPathFromArray(isHp) {
+        if (!hasExtendedCurve || extendedBoostTq.length === 0) return '';
+        var pts = [], step = Math.max(1, Math.floor(maxRpm / 60));
+        var stopAt = Math.min(n2oData.cutInRPM, maxRpm);
+        for (var rpm = 0; rpm <= stopAt; rpm += step) {
+          var baseV  = isHp ? getEnvelopeHpAt(rpm) : getEnvelopeTqAt(rpm);
+          var boostV = isHp ? extendedBoostHp[rpm] : extendedBoostTq[rpm];
+          var blend  = 1.0;
+          var v = (baseV + blend * boostV) * 1.0;
+          pts.push((CX0 + (rpm / maxRpm) * CW).toFixed(1) + ',' + valueToY(v).toFixed(1));
+        }
+        var baseVL = isHp ? getEnvelopeHpAt(stopAt) : getEnvelopeTqAt(stopAt);
+        var boostVL = isHp ? extendedBoostHp[stopAt] : extendedBoostTq[stopAt];
+        pts.push((CX0 + (stopAt / maxRpm) * CW).toFixed(1) + ',' + valueToY((baseVL + boostVL) * 1.0).toFixed(1));
         return pts.join(' ');
       }
 
@@ -531,11 +614,39 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
 
       // ─── STATE ────────────────────────────────────────────────────────────────
       var vehicleId = '';
-      var n2oData = { hasN2O: false, addedPower: 0, cutInRPM: 3500, cutInRange: 50 };
-      var isN2OActive  = false;
+var n2oData = { hasN2O: false, addedPower: 0, cutInRPM: 3500, cutInRange: 50 };
+var hasExtendedCurve = false;
+var isN2OActive = false;
       var wasN2oActive = false;
+      var extendedBoostTq = [];
+      var extendedBoostHp = [];
+      var realBoostTq = [];
+      var realBoostHp = [];
+      var curveFetchCount = 0;
+      var extendedBoostMax = 0;
+      var realBoostMax = 0;
 
       var requestCurveData = function() { bngApi.activeObjectLua('controller.mainController.sendTorqueData()'); };
+      var notifyN2OCurveReceived = function(isExtended) {
+        var arg = isExtended ? 'true' : 'false';
+        bngApi.activeObjectLua('extensions.nextMinimalDNA.onN2OCurveReceived(' + arg + ')');
+      };
+
+      var lastN2ODebugLog = 0;
+      function n2oDebugLog(msg) {
+        var now = performance.now();
+        if (now - lastN2ODebugLog < 500) return;
+        lastN2ODebugLog = now;
+        console.log('[NXT_N2O] ' + msg);
+      }
+
+      var lastHasExtLog = 0;
+      function n2oDebugHasExt() {
+        var now = performance.now();
+        if (now - lastHasExtLog < 1000) return;
+        lastHasExtLog = now;
+        console.log('[NXT_N2O] hasExtendedCurve=' + hasExtendedCurve);
+      }
 
       function resetSmoothing() {
         lastSmoothTorque  = 0;
@@ -561,8 +672,6 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
         if (data && data.auxiliary) {
           var aux = data.auxiliary;
           if (aux.hasNos) {
-            // Mark N2O present — boost curve will be derived from TorqueCurveChanged diff.
-            // cutInRPM from DNA is kept as fallback only; real value comes from curve diff.
             n2oData.hasN2O     = true;
             n2oData.addedPower = aux.n2oAddedPower || 0;
             n2oData.cutInRPM   = aux.n2oCutInRPM   || n2oData.cutInRPM;
@@ -574,18 +683,40 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
             envelopeBoostMax = 0;
           }
         }
+        // Handle empirical N2O curve from DNA (sub-cutIn estimated curve)
+        if (data && data.n2oEmpiricalCurve && Object.keys(data.n2oEmpiricalCurve).length > 0) {
+          var empCurve = data.n2oEmpiricalCurve;
+          hasExtendedCurve = true;
+          // Fill extendedBoostTq/Hp from empirical curve
+          for (var rpm in empCurve) {
+            if (empCurve.hasOwnProperty(rpm)) {
+              var r = parseInt(rpm);
+              extendedBoostTq[r] = empCurve[rpm];
+              extendedBoostHp[r] = r > 0 ? (empCurve[rpm] * r) / 7127 : 0;
+              if (empCurve[rpm] > (extendedBoostMax || 0)) {
+                extendedBoostMax = empCurve[rpm];
+              }
+            }
+          }
+          n2oDebugLog('empirical curve received | entries=' + Object.keys(empCurve).length + ' maxBoost=' + (extendedBoostMax || 0).toFixed(1));
+        }
       });
 
-      scope.$on('TorqueCurveChanged', function(ev, data) {
+scope.$on('TorqueCurveChanged', function(ev, data) {
         if (!data || !data.curves) return;
         if (data.vehicleID !== vehicleId) {
           vehicleId = data.vehicleID;
           scope.d.peakHp = 0; scope.d.peakTq = 0;
           resetSmoothing();
+          curveFetchCount = 0;
+          extendedBoostTq = [];
+          extendedBoostHp = [];
+          realBoostTq = [];
+          realBoostHp = [];
         }
         maxRpm = data.maxRPM || 7000;
 
-        if (n2oData.hasN2O && isN2OActive) return;
+        if (n2oData.hasN2O && (isN2OActive || wasN2oActive)) return;
 
         // baseCurve  = highest priority curve WITHOUT N2O → dashed reference (motor + FI)
         // boostedCurve = highest priority overall → active curve (may include N2O)
@@ -623,13 +754,13 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
         // Derive boost curve directly from diff (boosted - base), point by point.
         // This replaces formula + envelope sampling for N2O: no addedPower needed,
         // no cutInRPM hardcoded — both are read from the actual curve data.
-        renderBoostTq    = new Array(maxRpm + 1).fill(0);
-        renderBoostHp    = new Array(maxRpm + 1).fill(0);
-        envelopeBoostMax = 0;
+        var newBoostTq = new Array(maxRpm + 1).fill(0);
+        var newBoostHp = new Array(maxRpm + 1).fill(0);
+        var newBoostMax = 0;
+        var hasBoost = false;
 
         if (boostedCurve !== baseCurve) {
           var bArr = boostedCurve.torque || [];
-          var hasBoost = false;
 
           for (var r = 0; r <= maxRpm; r++) {
             // Interpolate boosted value at this RPM
@@ -643,21 +774,57 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
             var nTq  = ((tArr[n1] || 0) * (1 - (nIdx - n1))) + ((tArr[n2] || 0) * (nIdx - n1));
 
             var boost = Math.max(0, bTq - nTq);
-            renderBoostTq[r] = boost;
-            renderBoostHp[r] = r > 0 ? (boost * r) / 7127 : 0;
-            if (boost > envelopeBoostMax) envelopeBoostMax = boost;
+            newBoostTq[r] = boost;
+            newBoostHp[r] = r > 0 ? (boost * r) / 7127 : 0;
+            if (boost > newBoostMax) newBoostMax = boost;
             if (boost > 5) hasBoost = true;
-          }
-
-          if (hasBoost) {
-            n2oData.hasN2O = true;
-            // Detect real cutInRPM from first RPM where boost exceeds threshold
-            for (var cr = 0; cr <= maxRpm; cr++) {
-              if (renderBoostTq[cr] > 5) { n2oData.cutInRPM = cr; break; }
-            }
           }
         }
 
+        curveFetchCount++;
+
+        var curveNames = [];
+        for (var ck in data.curves) {
+          var c = data.curves[ck];
+          curveNames.push(c.name + '(p=' + c.priority + ')');
+        }
+        n2oDebugLog('TorqueCurveChanged | count=' + curveFetchCount + ' | curves=[' + curveNames.join(', ') + ']');
+
+        if (curveFetchCount === 1 && hasBoost) {
+          // First TorqueCurveChanged = extended curve (cutInRPM forced to 2000)
+          extendedBoostTq = newBoostTq;
+          extendedBoostHp = newBoostHp;
+          extendedBoostMax = newBoostMax;
+          hasExtendedCurve = true;
+          n2oDebugLog('stored as EXTENDED | maxBoost=' + newBoostMax.toFixed(1) + 'Nm');
+          notifyN2OCurveReceived(true);
+        } else if (curveFetchCount === 2 && hasBoost) {
+          // Second TorqueCurveChanged = real curve (cutInRPM restored)
+          realBoostTq = newBoostTq;
+          realBoostHp = newBoostHp;
+          realBoostMax = newBoostMax;
+          hasExtendedCurve = true;
+          n2oDebugLog('stored as REAL | maxBoost=' + newBoostMax.toFixed(1) + 'Nm | cutInRPM detected=' + n2oData.cutInRPM);
+          notifyN2OCurveReceived(false);
+          renderBoostTq = realBoostTq;
+          renderBoostHp = realBoostHp;
+          envelopeBoostMax = realBoostMax;
+          // Detect real cutInRPM from first RPM where boost exceeds threshold
+          for (var cr = 0; cr <= maxRpm; cr++) {
+            if (realBoostTq[cr] > 5) { n2oData.cutInRPM = cr; break; }
+          }
+        } else if (curveFetchCount > 2 && hasBoost) {
+          // Subsequent events — use real curve if available, else first available
+          if (realBoostTq.length > 0) {
+            renderBoostTq = realBoostTq;
+            renderBoostHp = realBoostHp;
+            envelopeBoostMax = realBoostMax;
+          } else {
+            renderBoostTq = newBoostTq;
+            renderBoostHp = newBoostHp;
+            envelopeBoostMax = newBoostMax;
+          }
+        }
         curveDirty = true;
         scope.$evalAsync(function() {
           rebuildRenderCurves();
@@ -696,8 +863,34 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
           // Hero metrics — ei[8] already includes N2O torque when active
           var baseTq = getEnvelopeTqAt(rpm);
           var baseHp = getEnvelopeHpAt(rpm);
-          var rawTq  = (ei[8] !== undefined) ? Math.max(0, ei[8]) : baseTq * load * damageFactor;
-          var rawHp  = (rawTq * rpm) / 7127;
+          var engineTq = (ei[8] !== undefined) ? Math.max(0, ei[8]) : Math.max(baseTq * load * damageFactor, 0);
+
+          // omega uses clamped rpm to avoid division-by-zero at stall
+          var rpmClamped = Math.max(rpm, 1);
+          var omega_rad  = rpmClamped * Math.PI / 30;
+
+          // Wheel power — ei[20] (watts) only trusted when it is plausibly large
+          // relative to estimated engine output.  At low load, ei[20] can return a
+          // real but tiny value (~745 W idle) that makes effectiveScale ≈ 0 and
+          // renders an invisible curve.  Require it to be ≥ 10 % of engine estimate.
+          var enginePower_W          = engineTq * omega_rad;
+          var estimatedWheelPower_W  = (e.engineRunning && engineTq > 0) ? enginePower_W * 0.85 : 0;
+          var minPlausible_W         = Math.max(estimatedWheelPower_W * 0.10, 50);
+          var wheelPower_W = (ei[20] !== undefined && ei[20] >= minPlausible_W)
+            ? ei[20]
+            : estimatedWheelPower_W;
+
+          var wheelTq = rpm > 50 ? wheelPower_W / omega_rad : 0;
+          var wheelHp = wheelPower_W / 745.7;
+
+          var rawTq, rawHp;
+          if (scope.cfg.curveMode === 'drivetrain') {
+            rawTq = e.engineRunning ? wheelTq : 0;
+            rawHp = e.engineRunning ? wheelHp : 0;
+          } else {
+            rawTq = e.engineRunning ? engineTq : 0;
+            rawHp = e.engineRunning ? (engineTq * rpm) / 7127 : 0;
+          }
           if (!e.engineRunning) { rawTq = 0; rawHp = 0; }
 
           // EMA smoothing for display values
@@ -724,8 +917,8 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
           // N2O state
           var isN2OTriggered = (e.nitrousOxideActive === 1) || (e.nitrousOxideOverride === 1);
 
-          // Feed envelope sampler — WOT peak-hold builds empirical curves
-          updateEnvelope(rpm, rawTq, isN2OTriggered, load, e.engineRunning);
+          // Feed envelope sampler — always uses engine torque regardless of display mode
+          updateEnvelope(rpm, engineTq, isN2OTriggered, load, e.engineRunning);
 
           // Throttle curve rebuild (max 4/s)
           if (curveDirty && (performance.now() - lastCurveBuild > CURVE_REBUILD_MS)) {
@@ -754,15 +947,25 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
           scope.d.n2oBoostHp  = (scope.d.n2oActive && curBlend > 0.1) ? boostHpNow : 0;
 
           // Throttle/turbo spool scale. refTq uses full boosted reference when N2O active.
+          // In drivetrain mode, rawTq is wheel torque — effectiveScale becomes drivetrain efficiency × throttle.
           // Clamped at 1.5 — prevents division-by-near-zero spikes at low RPM.
           var refTq = (isN2OTriggered && n2oData.hasN2O)
-            ? Math.max(baseTq + getBoostTqAt(rpm), 20)
-            : Math.max(baseTq, 20);
+            ? Math.max(baseTq + getBoostTqAt(rpm), 50)
+            : Math.max(baseTq, 50);
           var effectiveScale = e.engineRunning ? Math.min(rawTq / refTq, 1.5) : 0;
 
           // Live curves: envelope + ripple morph, scaled by throttle response
-          scope.chart.hpLivePts = buildLivePathFromArray(true,  effectiveScale);
-          scope.chart.tqLivePts = buildLivePathFromArray(false, effectiveScale);
+          scope.chart.hpLivePts = buildLivePathFromArray(true,  effectiveScale, hasExtendedCurve && isN2OActive);
+          scope.chart.tqLivePts = buildLivePathFromArray(false, effectiveScale, hasExtendedCurve && isN2OActive);
+
+          // Extended curve (estimated region below cutInRPM) at reduced opacity
+          if (hasExtendedCurve) {
+            scope.chart.hpExtPts = buildExtendedPathFromArray(true,  effectiveScale);
+            scope.chart.tqExtPts = buildExtendedPathFromArray(false, effectiveScale);
+          } else {
+            scope.chart.hpExtPts = '';
+            scope.chart.tqExtPts = '';
+          }
 
           // Dots follow real physics — no modifications
           scope.chart.cursorX = (CX0 + (rpm / maxRpm) * CW).toFixed(1);
