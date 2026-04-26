@@ -121,6 +121,8 @@ var NXT_TQ_SVG_DEFS = [
   '<polyline ng-attr-points="{{chart.hpLivePts}}" fill="none" stroke="#00d4ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>',
   '<polyline ng-attr-points="{{chart.tqExtPts}}" fill="none" stroke="rgba(255,170,0,0.4)" stroke-width="1.5" stroke-dasharray="2,3" vector-effect="non-scaling-stroke" ng-show="chart.tqExtPts"/>',
   '<polyline ng-attr-points="{{chart.hpExtPts}}" fill="none" stroke="rgba(0,212,255,0.4)" stroke-width="1.5" stroke-dasharray="2,3" vector-effect="non-scaling-stroke" ng-show="chart.hpExtPts"/>',
+  '<polyline ng-attr-points="{{chart.nosDeformTqPts}}" fill="none" stroke="rgba(255,140,0,0.85)" stroke-width="1.8" stroke-dasharray="3,2" stroke-linecap="round" vector-effect="non-scaling-stroke" ng-show="chart.nosDeformTqPts"/>',
+  '<polyline ng-attr-points="{{chart.nosDeformHpPts}}" fill="none" stroke="rgba(0,200,255,0.85)" stroke-width="1.8" stroke-dasharray="3,2" stroke-linecap="round" vector-effect="non-scaling-stroke" ng-show="chart.nosDeformHpPts"/>',
 
   '<line ng-attr-x1="{{chart.cursorX}}" y1="10" ng-attr-x2="{{chart.cursorX}}" y2="90" stroke="rgba(255,255,255,0.5)" stroke-width="1" stroke-dasharray="3,2" vector-effect="non-scaling-stroke"/>',
   '<circle ng-attr-cx="{{chart.cursorX}}" ng-attr-cy="{{chart.dotHpY}}" r="3.5" fill="#00d4ff" stroke="rgba(0,0,0,0.8)" stroke-width="1" vector-effect="non-scaling-stroke"/>',
@@ -246,7 +248,7 @@ angular.module('beamng.apps').directive('nextMinimalTorque', ['$timeout', '$wind
         return 1.0;
       }
 
-      scope.chart = { hpBasePts: '', tqBasePts: '', hpLivePts: '', tqLivePts: '', hpExtPts: '', tqExtPts: '', cursorX: CX0, dotHpY: CY0 + CH, dotTqY: CY0 + CH, yTop: '—', yHigh: '—', yLow: '—', vg1: CX0 + CW * 0.333, vg2: CX0 + CW * 0.666, xL1: '', xL1x: 0, xL2: '', xL2x: 0, xLmax: '', xLmaxX: 0 };
+      scope.chart = { hpBasePts: '', tqBasePts: '', hpLivePts: '', tqLivePts: '', hpExtPts: '', tqExtPts: '', nosDeformTqPts: '', nosDeformHpPts: '', cursorX: CX0, dotHpY: CY0 + CH, dotTqY: CY0 + CH, yTop: '—', yHigh: '—', yLow: '—', vg1: CX0 + CW * 0.333, vg2: CX0 + CW * 0.666, xL1: '', xL1x: 0, xL2: '', xL2x: 0, xLmax: '', xLmaxX: 0 };
       scope.$on('DamageData', function(ev, data) { lastDamage = data; });
 
       function valueToY(v) {
@@ -971,8 +973,112 @@ scope.$on('TorqueCurveChanged', function(ev, data) {
           scope.chart.cursorX = (CX0 + (rpm / maxRpm) * CW).toFixed(1);
           scope.chart.dotHpY  = valueToY(lastSmoothPower).toFixed(1);
           scope.chart.dotTqY  = valueToY(lastSmoothTorque).toFixed(1);
+
+          // NOS deform overlay — isolated module, reads only existing vars
+          var NOS_STATE = (e.nitrousOxideActive === 1) ? 1 : 0;
+          nosDeform.update(rpm, currentGear, NOS_STATE, performance.now());
+          scope.chart.nosDeformTqPts = nosDeform.buildPoints(false);
+          scope.chart.nosDeformHpPts = nosDeform.buildPoints(true);
         });
       });
+
+      // ─── NOS DEFORM MODULE ────────────────────────────────────────────────────
+      // Overlay: NOS_effect(rpm, t) = ramp(t) × kernel(rpm − anchorRpm) × renderBoostTq[rpm]
+      // Isolated — remove this block + 2 nosDeform polylines to disable completely.
+      var nosDeform = {
+        state:         'idle',   // 'idle' | 'ramping' | 'active' | 'fading'
+        anchorRpm:     0,
+        stateTime:     0,
+        rampValue:     0,
+        _rampBase:     0,
+        rampDuration:  1.5,
+        fadeDuration:  0.4,
+        kernelSpread:  800,
+        _lastGear:     -99,
+        _prevState:    0
+      };
+
+      function nosDeformRamp(t) {
+        var tc = Math.max(0, Math.min(1, t));
+        return tc * tc * (3.0 - 2.0 * tc);
+      }
+
+      function nosDeformKernel(deltaRpm, spread) {
+        if (deltaRpm < 0) return 0;
+        var x = deltaRpm / spread;
+        return Math.max(0, Math.min(1, 1.0 / (1.0 + Math.exp(-8.0 * (x - 0.5)))));
+      }
+
+      nosDeform.update = function(rpm, gear, NOS_STATE, now) {
+        // Gear re-anchor (while active)
+        if (gear !== nosDeform._lastGear && nosDeform._lastGear !== -99) {
+          if (nosDeform.state === 'ramping' || nosDeform.state === 'active') {
+            nosDeform.anchorRpm  = rpm;
+            nosDeform._rampBase  = nosDeform.rampValue;
+            nosDeform.stateTime  = now;
+            nosDeform.state      = 'ramping';
+          }
+        }
+        nosDeform._lastGear = gear;
+
+        // Edge detection (single binary flag)
+        if (NOS_STATE === 1 && nosDeform._prevState === 0) {
+          nosDeform.anchorRpm  = rpm;
+          nosDeform._rampBase  = nosDeform.rampValue;
+          nosDeform.stateTime  = now;
+          nosDeform.state      = 'ramping';
+        } else if (NOS_STATE === 0 && nosDeform._prevState === 1) {
+          if (nosDeform.state === 'ramping' || nosDeform.state === 'active') {
+            nosDeform._rampBase = nosDeform.rampValue;
+            nosDeform.stateTime = now;
+            nosDeform.state     = 'fading';
+          }
+        }
+        nosDeform._prevState = NOS_STATE;
+
+        // rampValue update
+        var dt = (now - nosDeform.stateTime) / 1000;
+        if (nosDeform.state === 'idle') {
+          nosDeform.rampValue = 0;
+        } else if (nosDeform.state === 'ramping') {
+          nosDeform.rampValue = nosDeform._rampBase + (1.0 - nosDeform._rampBase) * nosDeformRamp(dt / nosDeform.rampDuration);
+          if (nosDeform.rampValue >= 0.999) { nosDeform.rampValue = 1.0; nosDeform.state = 'active'; }
+        } else if (nosDeform.state === 'active') {
+          nosDeform.rampValue = 1.0;
+        } else if (nosDeform.state === 'fading') {
+          nosDeform.rampValue = nosDeform._rampBase * (1.0 - nosDeformRamp(dt / nosDeform.fadeDuration));
+          if (dt >= nosDeform.fadeDuration) { nosDeform.rampValue = 0; nosDeform.state = 'idle'; }
+        }
+      };
+
+      nosDeform.buildPoints = function(isHp) {
+        if (nosDeform.state === 'idle' || nosDeform.rampValue < 0.005) return '';
+        var pts = [], step = Math.max(1, Math.floor(maxRpm / 60));
+        for (var r = 0; r <= maxRpm; r += step) {
+          var baseV  = isHp ? getEnvelopeHpAt(r) : getEnvelopeTqAt(r);
+          // Prefer phase-1 extended curve (full range, no hard cutIn step) over phase-2 real curve.
+          // This makes the animation immune to the TorqueCurveChanged phase-2 update.
+          var boostV = isHp
+            ? ((extendedBoostHp.length > 0 && extendedBoostHp[r]) ? extendedBoostHp[r] : (renderBoostHp[r] || 0))
+            : ((extendedBoostTq.length > 0 && extendedBoostTq[r]) ? extendedBoostTq[r] : (renderBoostTq[r] || 0));
+          var k      = boostV > 0 ? nosDeformKernel(r - nosDeform.anchorRpm, nosDeform.kernelSpread) : 0;
+          pts.push((CX0 + (r / maxRpm) * CW).toFixed(1) + ',' + valueToY(baseV + nosDeform.rampValue * k * boostV).toFixed(1));
+        }
+        var bL  = isHp ? getEnvelopeHpAt(maxRpm) : getEnvelopeTqAt(maxRpm);
+        var bvL = isHp
+          ? ((extendedBoostHp.length > 0 && extendedBoostHp[maxRpm]) ? extendedBoostHp[maxRpm] : (renderBoostHp[maxRpm] || 0))
+          : ((extendedBoostTq.length > 0 && extendedBoostTq[maxRpm]) ? extendedBoostTq[maxRpm] : (renderBoostTq[maxRpm] || 0));
+        var kL  = bvL > 0 ? nosDeformKernel(maxRpm - nosDeform.anchorRpm, nosDeform.kernelSpread) : 0;
+        pts.push((CX0 + CW).toFixed(1) + ',' + valueToY(bL + nosDeform.rampValue * kL * bvL).toFixed(1));
+        return pts.join(' ');
+      };
+
+      // Reset on vehicle change — additive $on, no modification to existing handlers
+      function _nosDeformReset() { nosDeform.state = 'idle'; nosDeform.rampValue = 0; nosDeform._prevState = 0; nosDeform._lastGear = -99; }
+      scope.$on('VehicleChange',       _nosDeformReset);
+      scope.$on('VehicleFocusChanged', _nosDeformReset);
+      scope.$on('VehicleReset',        _nosDeformReset);
+      // ─── END NOS DEFORM MODULE ────────────────────────────────────────────────
 
       updateLayout();
       scope.$on('$destroy', function() {
